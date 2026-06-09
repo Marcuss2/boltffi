@@ -45,54 +45,54 @@ final class _$$BoltFFICallbackHandle extends $$ffi.Struct {
   external $$ffi.Pointer<$$ffi.Void> vtable;
 }
 
-final class _$$FFIException implements Exception {
+final class $$BoltFFIException implements Exception {
   final int code;
   final String message;
 
-  const _$$FFIException(this.code, this.message);
+  const $$BoltFFIException(this.code, this.message);
 
   @override
   String toString() {
-    return 'FFIException ($code): $message';
+    return 'BoltFFIException ($code): $message';
   }
 }
 
-sealed class BoltFFIResult<Ok, Err extends Exception> {
-  const BoltFFIResult();
+sealed class $$BoltFFIResult<Ok, Err extends Exception> {
+  const $$BoltFFIResult();
 
-  factory BoltFFIResult.ok(Ok value) = BoltFFIResult$Ok;
+  factory $$BoltFFIResult.ok(Ok value) = $$BoltFFIResult$Ok;
 
-  factory BoltFFIResult.err(Err value) = BoltFFIResult$Err;
+  factory $$BoltFFIResult.err(Err value) = $$BoltFFIResult$Err;
 
   Ok okOrThrow() {
     return switch (this) {
-      BoltFFIResult$Ok<Ok, Err>(:final value) => value,
-      BoltFFIResult$Err<Ok, Err>(:final value) => throw value,
+      $$BoltFFIResult$Ok<Ok, Err>(:final value) => value,
+      $$BoltFFIResult$Err<Ok, Err>(:final value) => throw value,
     };
   }
 
-  BoltFFIResult<Ok, MErr> mapError<MErr extends Exception>(
+  $$BoltFFIResult<Ok, MErr> mapError<MErr extends Exception>(
     MErr Function(Err) m,
   ) {
     return switch (this) {
-      BoltFFIResult$Ok<Ok, Err>(:final value) => BoltFFIResult.ok(value),
-      BoltFFIResult$Err<Ok, Err>(:final value) => BoltFFIResult.err(m(value)),
+      $$BoltFFIResult$Ok<Ok, Err>(:final value) => $$BoltFFIResult.ok(value),
+      $$BoltFFIResult$Err<Ok, Err>(:final value) => $$BoltFFIResult.err(m(value)),
     };
   }
 }
 
-final class BoltFFIResult$Ok<Ok, Err extends Exception>
-    extends BoltFFIResult<Ok, Err> {
+final class $$BoltFFIResult$Ok<Ok, Err extends Exception>
+    extends $$BoltFFIResult<Ok, Err> {
   final Ok value;
 
-  const BoltFFIResult$Ok(this.value);
+  const $$BoltFFIResult$Ok(this.value);
 }
 
-final class BoltFFIResult$Err<Ok, Err extends Exception>
-    extends BoltFFIResult<Ok, Err> {
+final class $$BoltFFIResult$Err<Ok, Err extends Exception>
+    extends $$BoltFFIResult<Ok, Err> {
   final Err value;
 
-  const BoltFFIResult$Err(this.value);
+  const $$BoltFFIResult$Err(this.value);
 }
 
 final class _$$WireWriter {
@@ -249,15 +249,15 @@ final class _$$WireWriter {
 
   @pragma('vm:prefer-inline')
   void writeResult<T, E extends Exception>(
-    BoltFFIResult<T, E> value,
+    $$BoltFFIResult<T, E> value,
     void Function(T value, _$$WireWriter writer) onOk,
     void Function(E value, _$$WireWriter writer) onErr,
   ) {
     switch (value) {
-      case BoltFFIResult$Ok<T, E>(:final value):
+      case $$BoltFFIResult$Ok<T, E>(:final value):
         writeU8(0);
         onOk(value, this);
-      case BoltFFIResult$Err<T, E>(:final value):
+      case $$BoltFFIResult$Err<T, E>(:final value):
         writeU8(1);
         onErr(value, this);
     }
@@ -365,7 +365,7 @@ class _$$WireReader {
     return switch (b) {
       0 => false,
       1 => true,
-      _ => throw _$$FFIException(-1, "Invalid bool value: $b"),
+      _ => throw $$BoltFFIException(-1, "Invalid bool value: $b"),
     };
   }
 
@@ -504,21 +504,21 @@ class _$$WireReader {
     return switch (tag) {
       0 => null,
       1 => onSome(this),
-      _ => throw _$$FFIException(-1, "Invalid Optional tag: $tag"),
+      _ => throw $$BoltFFIException(-1, "Invalid Optional tag: $tag"),
     };
   }
 
   @pragma('vm:prefer-inline')
-  BoltFFIResult<T, E> readResult<T, E extends Exception>(
+  $$BoltFFIResult<T, E> readResult<T, E extends Exception>(
     T Function(_$$WireReader) onOk,
     E Function(_$$WireReader) onErr
   ) {
     final tag = readU8();
 
     return switch (tag) {
-      0 => BoltFFIResult.ok(onOk(this)),
-      1 => BoltFFIResult.err(onErr(this)),
-      _ => throw _$$FFIException(-1, "Invalid Result tag: $tag"),
+      0 => $$BoltFFIResult.ok(onOk(this)),
+      1 => $$BoltFFIResult.err(onErr(this)),
+      _ => throw $$BoltFFIException(-1, "Invalid Result tag: $tag"),
     };
   }
 }
@@ -627,7 +627,7 @@ class _$$BytesReader {
     return switch (b) {
       0 => false,
       1 => true,
-      _ => throw _$$FFIException(-1, "Invalid bool value: $b"),
+      _ => throw $$BoltFFIException(-1, "Invalid bool value: $b"),
     };
   }
 
@@ -802,21 +802,21 @@ class _$$BytesReader {
     return switch (tag) {
       0 => null,
       1 => onSome(this),
-      _ => throw _$$FFIException(-1, "Invalid Optional tag: $tag"),
+      _ => throw $$BoltFFIException(-1, "Invalid Optional tag: $tag"),
     };
   }
 
   @pragma('vm:prefer-inline')
-  BoltFFIResult<T, E> readResult<T, E extends Exception>(
+  $$BoltFFIResult<T, E> readResult<T, E extends Exception>(
     T Function(_$$BytesReader) onOk,
     E Function(_$$BytesReader) onErr,
   ) {
     final tag = readU8();
 
     return switch (tag) {
-      0 => BoltFFIResult.ok(onOk(this)),
-      1 => BoltFFIResult.err(onErr(this)),
-      _ => throw _$$FFIException(-1, "Invalid Result tag: $tag"),
+      0 => $$BoltFFIResult.ok(onOk(this)),
+      1 => $$BoltFFIResult.err(onErr(this)),
+      _ => throw $$BoltFFIException(-1, "Invalid Result tag: $tag"),
     };
   }
 }
@@ -862,7 +862,7 @@ final class _$$BoltFFIAsync {
         case _k$RustFuturePoll$MaybeReady:
           pollFuture(handle, data, completerCallbackCallable.nativeFunction);
         case _:
-          throw _$$FFIException(-1, "Unexpected poll result: $res");
+          throw $$BoltFFIException(-1, "Unexpected poll result: $res");
       }
     }
 

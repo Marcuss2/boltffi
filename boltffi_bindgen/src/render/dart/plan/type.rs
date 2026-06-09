@@ -318,7 +318,14 @@ impl DartType {
             DartType::String => "String".to_string(),
             DartType::Option(inner) => format!("{}?", inner.dart_type()),
             DartType::Result { ok, err } => {
-                format!("BoltFFIResult<{}, {}>", ok.dart_type(), err.dart_type())
+                format!(
+                    "$$BoltFFIResult<{}, {}>",
+                    ok.dart_type(),
+                    match err.as_ref() {
+                        DartType::String => "$$BoltFFIException".to_string(),
+                        _ => err.dart_type(),
+                    }
+                )
             }
             DartType::Bytes => "$$typed_data.Uint8List".to_string(),
             DartType::List(inner) => format!("List<{}>", inner.dart_type()),

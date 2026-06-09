@@ -171,11 +171,13 @@ pub fn type_expr_dart_type(ty: &TypeExpr) -> String {
             _ => format!("List<{}>", type_expr_dart_type(inner)),
         },
         TypeExpr::Option(inner) => format!("{}?", type_expr_dart_type(inner)),
-        TypeExpr::Result { ok, err } => format!(
-            "BoltFFIResult<{}, {}>",
-            type_expr_dart_type(ok),
-            type_expr_dart_type(err)
-        ),
+        TypeExpr::Result { ok, err } => {
+            let mut err_type = type_expr_dart_type(err);
+            if err_type.as_str() == "String" {
+                err_type = "$$BoltFFIException".to_string();
+            }
+            format!("$$BoltFFIResult<{}, {}>", type_expr_dart_type(ok), err_type)
+        }
         TypeExpr::Record(id) => render_type_name(id.as_str()),
         TypeExpr::Enum(id) => render_type_name(id.as_str()),
         TypeExpr::Custom(id) => render_type_name(id.as_str()),
@@ -197,7 +199,7 @@ pub fn return_def_dart_type(return_def: &ReturnDef) -> String {
         ReturnDef::Void => "void".to_string(),
         ReturnDef::Value(type_expr) => type_expr_dart_type(type_expr),
         ReturnDef::Result { ok, err } => format!(
-            "BoltFFIResult<{}, {}>",
+            "$$BoltFFIResult<{}, {}>",
             type_expr_dart_type(ok),
             type_expr_dart_type(err)
         ),
@@ -366,7 +368,7 @@ fn write_seq_dart_type(seq: &WriteSeq) -> String {
         }
         Some(WriteOp::Option { some, .. }) => format!("{}?", write_seq_dart_type(some)),
         Some(WriteOp::Result { ok, err, .. }) => format!(
-            "BoltFFIResult<{}, {}>",
+            "$$BoltFFIResult<{}, {}>",
             write_seq_dart_type(ok),
             write_seq_dart_type(err)
         ),
@@ -677,7 +679,7 @@ pub fn emit_size_expr(size: &SizeExpr) -> String {
                 ValueExpr::Var("value".to_string()),
             ));
             format!(
-                "1 + (switch ({}) {{ BoltFFIResult$Ok(:final value) => {}, BoltFFIResult$Err(:final value) => {} }})",
+                "1 + (switch ({}) {{ $$BoltFFIResult$Ok(:final value) => {}, $$BoltFFIResult$Err(:final value) => {} }})",
                 render_value(value),
                 ok_expr,
                 err_expr
