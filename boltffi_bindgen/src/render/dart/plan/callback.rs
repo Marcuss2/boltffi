@@ -38,8 +38,6 @@ impl DartCallbackMethod {
 pub struct DartCallback {
     pub class_name: String,
     pub impl_class_name: String,
-    pub handle_map_class_name: String,
-    pub handle_map_instance_name: String,
     pub methods: Vec<DartCallbackMethod>,
     pub native: DartNativeCallback,
 }

@@ -822,6 +822,48 @@ class _$$BytesReader {
   }
 }
 
+final class _$$BoltFFIPtr implements $$ffi.Finalizable {
+  late final $$ffi.Pointer<$$ffi.Void> ptr;
+
+  _$$BoltFFIPtr(this.ptr);
+}
+
+final class _$$BoltFFICalloc {
+  static final _finalizer = $$ffi.NativeFinalizer($$extffi.calloc.nativeFree);
+
+  static _$$BoltFFIPtr alloc(int size) {
+    final o = _$$BoltFFIPtr($$extffi.calloc.allocate<$$ffi.Void>(size));
+    _finalizer.attach(o, o.ptr, detach: o);
+    return o;
+  }
+}
+
+final class _$$BoltFFIHandleMap<O> {
+  final Map<int, O> _map = {};
+  int _counter = 1;
+
+  int insert(O value) {
+    final int handle = _counter + 2;
+    _counter = handle;
+    _map[handle] = value;
+    return handle;
+  }
+
+  O? get(int handle) => _map[handle];
+
+  O? remove(int handle) => _map.remove(handle);
+
+  int clone(int handle) {
+    final obj = _map[handle];
+
+    if (obj == null) {
+      return 0;
+    }
+
+    return insert(obj);
+  }
+}
+
 final class _$$BoltFFIAsync {
   static const int _k$RustFuturePoll$Ready = 0;
   static const int _k$RustFuturePoll$MaybeReady = 1;

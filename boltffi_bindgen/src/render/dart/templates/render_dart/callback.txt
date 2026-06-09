@@ -34,22 +34,41 @@ abstract interface class {{ cb.class_name }} {
 }
 
 final class {{ cb.impl_class_name }} {
-  static void free(int handle) {
-    {{ cb.handle_map_instance_name }}.remove(handle);
+  static final _$$BoltFFIHandleMap<{{ cb.class_name }}> map = _$$BoltFFIHandleMap();
+
+  static final _$$BoltFFIPtr vtable = (() {
+    final vtable = _$$BoltFFICalloc.alloc(
+      $$ffi.sizeOf<{{ cb.native.vtable_struct_name }}>(),
+    );
+
+    vtable.ptr.cast<{{ cb.native.vtable_struct_name }}>()
+      ..ref.free = $$ffi.Pointer.fromFunction({{ cb.impl_class_name }}.free)
+      ..ref.clone = $$ffi.Pointer.fromFunction({{ cb.impl_class_name }}.clone, 0)
+{%- for method in cb.native.methods %}
+      ..ref.{{ method.vtable_field_name }} = $$ffi.Pointer.fromFunction({{ cb.impl_class_name }}.{{ method.vtable_field_name }})
+{%- endfor %};
+
+    return vtable;
+  })();
+
+  static _$$BoltFFICallbackHandle createCallbackHandle({{ cb.class_name }} value) {
+    return $$ffi.Struct.create()
+      ..handle = map.insert(value)
+      ..vtable = vtable.ptr;
   }
 
-  static int clone(int handle) {
-    return {{ cb.handle_map_instance_name }}.clone(handle);
-  }
+  static void free(int handle) => map.remove(handle);
+
+  static int clone(int handle) => map.clone(handle);
 {% for method in cb.native.methods %}
   static void {{ method.vtable_field_name }}(
 {%- for param in method.params %}
     {{ param.native_type.dart_sub_type() }} {{ param.name }},
 {%- endfor %}
   ){% if method.is_async() %} async{% endif %} {
-    final impl = {{ cb.handle_map_instance_name }}.get(_p$handle);
+    final l$impl = map.get(_p$handle);
 
-    if (impl == null) {
+    if (l$impl == null) {
       throw $$BoltFFIException(-1, "{{ cb.class_name }}: invalid handle `${_p$handle}`");
     }
 
@@ -59,67 +78,3 @@ final class {{ cb.impl_class_name }} {
   }
 {% endfor %}
 }
-
-final class {{ cb.handle_map_class_name }} implements $$ffi.Finalizable {
-  final Map<int, {{ cb.class_name }}> _map = {};
-  int _counter = 1;
-
-  late final $$ffi.Pointer<{{ cb.native.vtable_struct_name }}> _vtable;
-  static final $$ffi.NativeFinalizer _vtableFinalizer = $$ffi.NativeFinalizer($$extffi.calloc.nativeFree);
-
-  {{ cb.handle_map_class_name }}() {
-    _vtable = $$extffi.calloc<{{ cb.native.vtable_struct_name }}>();
-
-    _vtable.ref.free = $$ffi.Pointer.fromFunction(
-      {{ cb.impl_class_name }}.free
-    );
-    _vtable.ref.clone = $$ffi.Pointer.fromFunction(
-      {{ cb.impl_class_name }}.clone,
-      0
-    );
-{%- for method in cb.native.methods %}
-    _vtable.ref.{{ method.vtable_field_name }} = $$ffi.Pointer.fromFunction(
-      {{ cb.impl_class_name }}.{{ method.vtable_field_name }},
-    );
-{% endfor %}
-    _vtableFinalizer.attach(
-      this,
-      _vtable.cast(),
-      detach: this,
-    );
-  }
-
-  void dispose() {
-    _vtableFinalizer.detach(this);
-    $$extffi.calloc.free(_vtable);
-  }
-
-  int insert({{ cb.class_name }} value) {
-    final int handle = _counter + 2;
-    _counter = handle;
-    _map[handle] = value;
-    return handle;
-  }
-
-  _$$BoltFFICallbackHandle createHandle({{ cb.class_name }} value) {
-    return $$ffi.Struct.create()
-      ..handle = insert(value)
-      ..vtable = _vtable.cast();
-  }
-
-  {{ cb.class_name }}? get(int handle) => _map[handle];
-
-  {{ cb.class_name }}? remove(int handle) => _map.remove(handle);
-
-  int clone(int handle) {
-    final obj = _map[handle];
-
-    if (obj == null) {
-      return 0;
-    }
-
-    return insert(obj);
-  }
-}
-
-final {{ cb.handle_map_instance_name }} = {{ cb.handle_map_class_name }}();

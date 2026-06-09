@@ -83,13 +83,33 @@ abstract interface class ICallback {
 }
 
 final class _I$ICallback {
-  static void free(int handle) {
-    _k$ICallbackHandleMap.remove(handle);
+  static final _$$BoltFFIHandleMap<ICallback> map = _$$BoltFFIHandleMap();
+
+  static final _$$BoltFFIPtr vtable = (() {
+    final vtable = _$$BoltFFICalloc.alloc(
+      $$ffi.sizeOf<_I$ICallbackVTable>(),
+    );
+
+    vtable.ptr.cast<_I$ICallbackVTable>()
+      ..ref.free = $$ffi.Pointer.fromFunction(_I$ICallback.free)
+      ..ref.clone = $$ffi.Pointer.fromFunction(_I$ICallback.clone, 0)
+      ..ref.mapU32 = $$ffi.Pointer.fromFunction(_I$ICallback.mapU32)
+      ..ref.mapStringRef = $$ffi.Pointer.fromFunction(_I$ICallback.mapStringRef)
+      ..ref.mapString = $$ffi.Pointer.fromFunction(_I$ICallback.mapString)
+      ..ref.processBytes = $$ffi.Pointer.fromFunction(_I$ICallback.processBytes);
+
+    return vtable;
+  })();
+
+  static _$$BoltFFICallbackHandle createCallbackHandle(ICallback value) {
+    return $$ffi.Struct.create()
+      ..handle = map.insert(value)
+      ..vtable = vtable.ptr;
   }
 
-  static int clone(int handle) {
-    return _k$ICallbackHandleMap.clone(handle);
-  }
+  static void free(int handle) => map.remove(handle);
+
+  static int clone(int handle) => map.clone(handle);
 
   static void mapU32(
     int _p$handle,
@@ -97,10 +117,10 @@ final class _I$ICallback {
     $$ffi.Pointer<$$ffi.Uint32> _p$outPtr,
     $$ffi.Pointer<_$$FFIStatus> _p$outStatus,
   ) {
-    final impl = _k$ICallbackHandleMap.get(_p$handle);
+    final l$impl = map.get(_p$handle);
 
-    if (impl == null) {
-      throw _$$FFIException(-1, "ICallback: invalid handle `${_p$handle}`");
+    if (l$impl == null) {
+      throw $$BoltFFIException(-1, "ICallback: invalid handle `${_p$handle}`");
     }
 
     try {
@@ -116,10 +136,10 @@ final class _I$ICallback {
     $$ffi.Pointer<$$ffi.UintPtr> _p$outLen,
     $$ffi.Pointer<_$$FFIStatus> _p$outStatus,
   ) {
-    final impl = _k$ICallbackHandleMap.get(_p$handle);
+    final l$impl = map.get(_p$handle);
 
-    if (impl == null) {
-      throw _$$FFIException(-1, "ICallback: invalid handle `${_p$handle}`");
+    if (l$impl == null) {
+      throw $$BoltFFIException(-1, "ICallback: invalid handle `${_p$handle}`");
     }
 
     try {
@@ -135,10 +155,10 @@ final class _I$ICallback {
     $$ffi.Pointer<$$ffi.UintPtr> _p$outLen,
     $$ffi.Pointer<_$$FFIStatus> _p$outStatus,
   ) {
-    final impl = _k$ICallbackHandleMap.get(_p$handle);
+    final l$impl = map.get(_p$handle);
 
-    if (impl == null) {
-      throw _$$FFIException(-1, "ICallback: invalid handle `${_p$handle}`");
+    if (l$impl == null) {
+      throw $$BoltFFIException(-1, "ICallback: invalid handle `${_p$handle}`");
     }
 
     try {
@@ -152,10 +172,10 @@ final class _I$ICallback {
     int bytesLen,
     $$ffi.Pointer<_$$FFIStatus> _p$outStatus,
   ) {
-    final impl = _k$ICallbackHandleMap.get(_p$handle);
+    final l$impl = map.get(_p$handle);
 
-    if (impl == null) {
-      throw _$$FFIException(-1, "ICallback: invalid handle `${_p$handle}`");
+    if (l$impl == null) {
+      throw $$BoltFFIException(-1, "ICallback: invalid handle `${_p$handle}`");
     }
 
     try {
@@ -164,78 +184,3 @@ final class _I$ICallback {
   }
 
 }
-
-final class _I$ICallbackHandleMap implements $$ffi.Finalizable {
-  final Map<int, ICallback> _map = {};
-  int _counter = 1;
-
-  late final $$ffi.Pointer<_I$ICallbackVTable> _vtable;
-  static final $$ffi.NativeFinalizer _vtableFinalizer = $$ffi.NativeFinalizer($$extffi.calloc.nativeFree);
-
-  _I$ICallbackHandleMap() {
-    _vtable = $$extffi.calloc<_I$ICallbackVTable>();
-
-    _vtable.ref.free = $$ffi.Pointer.fromFunction(
-      _I$ICallback.free
-    );
-    _vtable.ref.clone = $$ffi.Pointer.fromFunction(
-      _I$ICallback.clone,
-      0
-    );
-    _vtable.ref.mapU32 = $$ffi.Pointer.fromFunction(
-      _I$ICallback.mapU32,
-    );
-
-    _vtable.ref.mapStringRef = $$ffi.Pointer.fromFunction(
-      _I$ICallback.mapStringRef,
-    );
-
-    _vtable.ref.mapString = $$ffi.Pointer.fromFunction(
-      _I$ICallback.mapString,
-    );
-
-    _vtable.ref.processBytes = $$ffi.Pointer.fromFunction(
-      _I$ICallback.processBytes,
-    );
-
-    _vtableFinalizer.attach(
-      this,
-      _vtable.cast(),
-      detach: this,
-    );
-  }
-
-  void dispose() {
-    _vtableFinalizer.detach(this);
-    $$extffi.calloc.free(_vtable);
-  }
-
-  int insert(ICallback value) {
-    final int handle = _counter + 2;
-    _counter = handle;
-    _map[handle] = value;
-    return handle;
-  }
-
-  _$$BoltFFICallbackHandle createHandle(ICallback value) {
-    return $$ffi.Struct.create()
-      ..handle = insert(value)
-      ..vtable = _vtable.cast();
-  }
-
-  ICallback? get(int handle) => _map[handle];
-
-  ICallback? remove(int handle) => _map.remove(handle);
-
-  int clone(int handle) {
-    final obj = _map[handle];
-
-    if (obj == null) {
-      return 0;
-    }
-
-    return insert(obj);
-  }
-}
-
-final _k$ICallbackHandleMap = _I$ICallbackHandleMap();

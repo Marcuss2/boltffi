@@ -113,8 +113,6 @@ impl<'a> super::DartLowerer<'a> {
             "_I${}",
             NamingConvention::class_name(abi_cb.vtable_type.as_str())
         );
-        let handle_map_class_name = format!("{}HandleMap", impl_class_name);
-        let handle_map_instance_name = format!("_k${}HandleMap", class_name);
 
         let methods = cb_def
             .methods
@@ -131,8 +129,6 @@ impl<'a> super::DartLowerer<'a> {
         DartCallback {
             class_name,
             impl_class_name,
-            handle_map_class_name,
-            handle_map_instance_name,
             methods,
             native: DartNativeCallback {
                 vtable_struct_name,
