@@ -192,13 +192,16 @@ final class _$$WireWriter {
 
   @pragma('vm:prefer-inline')
   void writeTypedList($$typed_data.TypedData v) {
-    final byteLength = v.lengthInBytes;
+    final bytesLength = v.lengthInBytes;
+
+    writeU32(bytesLength ~/ v.elementSizeInBytes);
+
     _buf.setRange(
       _offset,
-      _offset + byteLength,
-      v.buffer.asUint8List(v.offsetInBytes, byteLength),
+      _offset + bytesLength,
+      v.buffer.asUint8List(v.offsetInBytes, bytesLength),
     );
-    _offset += byteLength;
+    _offset += bytesLength;
   }
 
   @pragma('vm:prefer-inline')
@@ -214,9 +217,7 @@ final class _$$WireWriter {
 
   @pragma('vm:prefer-inline')
   void writeString(String v) {
-    final bytes = $$convert.utf8.encode(v);
-    writeU32(bytes.length);
-    writeTypedList(bytes);
+    writeTypedList($$convert.utf8.encode(v));
   }
 
   @pragma('vm:prefer-inline')
