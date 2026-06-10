@@ -68,9 +68,9 @@ mod tests {
     use crate::{
         ir::{
             self, CallbackId, CallbackKind, CallbackMethodDef, CallbackTraitDef, ClassDef, ClassId,
-            ConstructorDef, FfiContract, MethodDef, MethodId, PackageInfo, ParamDef, ParamName,
-            ParamPassing, PrimitiveType, Receiver, ReturnDef, StreamDef, StreamId, StreamMode,
-            TypeExpr,
+            ConstructorDef, FfiContract, FieldDef, FieldName, MethodDef, MethodId, PackageInfo,
+            ParamDef, ParamName, ParamPassing, PrimitiveType, Receiver, RecordDef, RecordId,
+            ReturnDef, StreamDef, StreamId, StreamMode, TypeExpr,
         },
         render::dart::{DartLibrary, DartLowerer},
     };
@@ -281,6 +281,97 @@ mod tests {
 
         let template = ClassTemplate {
             class: &library.classes[0],
+        };
+
+        insta::assert_snapshot!(template.render().unwrap());
+    }
+
+    #[test]
+    pub fn snapshot_record_with_primitive_list_fields() {
+        let mut ffi = empty_contract();
+
+        ffi.catalog.insert_record(RecordDef {
+            id: RecordId::new("PrimitiveLists"),
+            is_repr_c: false,
+            is_error: false,
+            fields: vec![
+                FieldDef {
+                    name: FieldName::new("u8s"),
+                    type_expr: TypeExpr::Vec(Box::new(TypeExpr::Primitive(PrimitiveType::U8))),
+                    doc: None,
+                    default: None,
+                },
+                FieldDef {
+                    name: FieldName::new("i8s"),
+                    type_expr: TypeExpr::Vec(Box::new(TypeExpr::Primitive(PrimitiveType::I8))),
+                    doc: None,
+                    default: None,
+                },
+                FieldDef {
+                    name: FieldName::new("u16s"),
+                    type_expr: TypeExpr::Vec(Box::new(TypeExpr::Primitive(PrimitiveType::U16))),
+                    doc: None,
+                    default: None,
+                },
+                FieldDef {
+                    name: FieldName::new("i16s"),
+                    type_expr: TypeExpr::Vec(Box::new(TypeExpr::Primitive(PrimitiveType::I16))),
+                    doc: None,
+                    default: None,
+                },
+                FieldDef {
+                    name: FieldName::new("u32s"),
+                    type_expr: TypeExpr::Vec(Box::new(TypeExpr::Primitive(PrimitiveType::U32))),
+                    doc: None,
+                    default: None,
+                },
+                FieldDef {
+                    name: FieldName::new("i32s"),
+                    type_expr: TypeExpr::Vec(Box::new(TypeExpr::Primitive(PrimitiveType::I32))),
+                    doc: None,
+                    default: None,
+                },
+                FieldDef {
+                    name: FieldName::new("u64s"),
+                    type_expr: TypeExpr::Vec(Box::new(TypeExpr::Primitive(PrimitiveType::U64))),
+                    doc: None,
+                    default: None,
+                },
+                FieldDef {
+                    name: FieldName::new("i64s"),
+                    type_expr: TypeExpr::Vec(Box::new(TypeExpr::Primitive(PrimitiveType::I64))),
+                    doc: None,
+                    default: None,
+                },
+                FieldDef {
+                    name: FieldName::new("f32s"),
+                    type_expr: TypeExpr::Vec(Box::new(TypeExpr::Primitive(PrimitiveType::F32))),
+                    doc: None,
+                    default: None,
+                },
+                FieldDef {
+                    name: FieldName::new("f64s"),
+                    type_expr: TypeExpr::Vec(Box::new(TypeExpr::Primitive(PrimitiveType::F64))),
+                    doc: None,
+                    default: None,
+                },
+                FieldDef {
+                    name: FieldName::new("bools"),
+                    type_expr: TypeExpr::Vec(Box::new(TypeExpr::Primitive(PrimitiveType::Bool))),
+                    doc: None,
+                    default: None,
+                },
+            ],
+            constructors: vec![],
+            methods: vec![],
+            doc: None,
+            deprecated: None,
+        });
+
+        let library = lower(&ffi);
+
+        let template = RecordTemplate {
+            record: &library.records[0],
         };
 
         insta::assert_snapshot!(template.render().unwrap());

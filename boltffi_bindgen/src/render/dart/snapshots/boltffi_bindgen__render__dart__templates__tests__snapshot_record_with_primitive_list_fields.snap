@@ -1,0 +1,75 @@
+---
+source: boltffi_bindgen/src/render/dart/templates.rs
+expression: template.render().unwrap()
+---
+
+final class PrimitiveLists {
+  $$typed_data.Uint8List u8s;
+  $$typed_data.Int8List i8s;
+  $$typed_data.Uint16List u16s;
+  $$typed_data.Int16List i16s;
+  $$typed_data.Uint32List u32s;
+  $$typed_data.Int32List i32s;
+  $$typed_data.Uint64List u64s;
+  $$typed_data.Int64List i64s;
+  $$typed_data.Float32List f32s;
+  $$typed_data.Float64List f64s;
+  $$BoltFFIBoolList bools;
+
+  PrimitiveLists({
+    required this.u8s,
+    required this.i8s,
+    required this.u16s,
+    required this.i16s,
+    required this.u32s,
+    required this.i32s,
+    required this.u64s,
+    required this.i64s,
+    required this.f32s,
+    required this.f64s,
+    required this.bools,
+  });
+
+  factory PrimitiveLists._m$wireDecode(_$$WireReader _p$reader) {
+    return PrimitiveLists(
+      u8s: _p$reader.readUint8List(),
+      i8s: _p$reader.readInt8List(),
+      u16s: _p$reader.readUint16List(),
+      i16s: _p$reader.readInt16List(),
+      u32s: _p$reader.readUint32List(),
+      i32s: _p$reader.readInt32List(),
+      u64s: _p$reader.readUint64List(),
+      i64s: _p$reader.readInt64List(),
+      f32s: _p$reader.readFloat32List(),
+      f64s: _p$reader.readFloat64List(),
+      bools: _p$reader.readBoolList(),
+    );
+  }
+
+  void _m$wireEncode(_$$WireWriter _p$writer) {
+    _p$writer.writeTypedList(u8s);
+    _p$writer.writeTypedList(i8s);
+    _p$writer.writeTypedList(u16s);
+    _p$writer.writeTypedList(i16s);
+    _p$writer.writeTypedList(u32s);
+    _p$writer.writeTypedList(i32s);
+    _p$writer.writeTypedList(u64s);
+    _p$writer.writeTypedList(i64s);
+    _p$writer.writeTypedList(f32s);
+    _p$writer.writeTypedList(f64s);
+    _p$writer.writeTypedList(bools._bytes);
+  }
+
+  int _m$wireEncodedSize() =>
+    (4 + u8s.length) +
+    (4 + i8s.length * 1) +
+    (4 + u16s.length * 2) +
+    (4 + i16s.length * 2) +
+    (4 + u32s.length * 4) +
+    (4 + i32s.length * 4) +
+    (4 + u64s.length * 8) +
+    (4 + i64s.length * 8) +
+    (4 + f32s.length * 4) +
+    (4 + f64s.length * 8) +
+    (4 + bools.length * 1);
+}

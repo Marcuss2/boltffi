@@ -166,7 +166,7 @@ pub fn type_expr_dart_type(ty: &TypeExpr) -> String {
                 PrimitiveType::F64 => "$$typed_data.Float64List".to_string(),
                 PrimitiveType::U8 => "$$typed_data.Uint8List".to_string(),
                 PrimitiveType::I8 => "$$typed_data.Int8List".to_string(),
-                PrimitiveType::Bool => "$$typed_data.Uint8List".to_string(),
+                PrimitiveType::Bool => "$$BoltFFIBoolList".to_string(),
             },
             _ => format!("List<{}>", type_expr_dart_type(inner)),
         },
@@ -385,7 +385,25 @@ fn emit_writer_vec(
 ) -> String {
     match layout {
         VecLayout::Blittable { .. } => match element_type {
-            TypeExpr::Primitive(..) => format!("{writer_name}.writeTypedList({value});"),
+            TypeExpr::Primitive(primitive) => {
+                let value = match primitive {
+                    PrimitiveType::Bool => format!("{value}._bytes"),
+                    PrimitiveType::I8
+                    | PrimitiveType::U8
+                    | PrimitiveType::I16
+                    | PrimitiveType::U16
+                    | PrimitiveType::I32
+                    | PrimitiveType::U32
+                    | PrimitiveType::I64
+                    | PrimitiveType::U64
+                    | PrimitiveType::ISize
+                    | PrimitiveType::USize
+                    | PrimitiveType::F32
+                    | PrimitiveType::F64 => value.to_string(),
+                };
+
+                format!("{writer_name}.writeTypedList({value});")
+            }
             _ => {
                 let inner_write_expr = emit_writer_write(element, writer_name, "item");
                 format!(
@@ -483,7 +501,8 @@ fn emit_reader_vec(
         VecLayout::Blittable { .. } => match element_type {
             TypeExpr::Primitive(primitive) => {
                 let method = match primitive {
-                    PrimitiveType::U8 | PrimitiveType::Bool => "readUint8List",
+                    PrimitiveType::Bool => "readBoolList",
+                    PrimitiveType::U8 => "readUint8List",
                     PrimitiveType::I8 => "readInt8List",
                     PrimitiveType::I16 => "readInt16List",
                     PrimitiveType::U16 => "readUint16List",
@@ -619,7 +638,7 @@ fn emit_vec_size(value: &str, inner: &SizeExpr, layout: &VecLayout) -> String {
             format!("(4 + {}.length * {})", value, emit_size_expr(inner))
         }
         VecLayout::Encoded => format!(
-            "{value}.fold<int>(0, (sum, item) => sum + {})",
+            "{value}.fold<int>(4, (sum, item) => sum + {})",
             emit_size_expr(&remap_size_expr_value_expr(
                 inner,
                 ValueExpr::Named("item".to_string())
