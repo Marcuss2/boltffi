@@ -120,7 +120,7 @@ final class _I$ICallback {
     final l$impl = map.get(_p$handle);
 
     if (l$impl == null) {
-      throw $$BoltFFIException(-1, "ICallback: invalid handle `${_p$handle}`");
+      throw $$BoltFFIException("ICallback: invalid handle `${_p$handle}`");
     }
 
     try {
@@ -139,7 +139,7 @@ final class _I$ICallback {
     final l$impl = map.get(_p$handle);
 
     if (l$impl == null) {
-      throw $$BoltFFIException(-1, "ICallback: invalid handle `${_p$handle}`");
+      throw $$BoltFFIException("ICallback: invalid handle `${_p$handle}`");
     }
 
     try {
@@ -158,7 +158,7 @@ final class _I$ICallback {
     final l$impl = map.get(_p$handle);
 
     if (l$impl == null) {
-      throw $$BoltFFIException(-1, "ICallback: invalid handle `${_p$handle}`");
+      throw $$BoltFFIException("ICallback: invalid handle `${_p$handle}`");
     }
 
     try {
@@ -175,7 +175,7 @@ final class _I$ICallback {
     final l$impl = map.get(_p$handle);
 
     if (l$impl == null) {
-      throw $$BoltFFIException(-1, "ICallback: invalid handle `${_p$handle}`");
+      throw $$BoltFFIException("ICallback: invalid handle `${_p$handle}`");
     }
 
     try {

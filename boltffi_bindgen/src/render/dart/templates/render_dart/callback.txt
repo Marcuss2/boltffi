@@ -69,7 +69,7 @@ final class {{ cb.impl_class_name }} {
     final l$impl = map.get(_p$handle);
 
     if (l$impl == null) {
-      throw $$BoltFFIException(-1, "{{ cb.class_name }}: invalid handle `${_p$handle}`");
+      throw $$BoltFFIException("{{ cb.class_name }}: invalid handle `${_p$handle}`");
     }
 
     try {

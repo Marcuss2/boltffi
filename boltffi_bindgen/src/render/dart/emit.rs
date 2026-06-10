@@ -172,11 +172,14 @@ pub fn type_expr_dart_type(ty: &TypeExpr) -> String {
         },
         TypeExpr::Option(inner) => format!("{}?", type_expr_dart_type(inner)),
         TypeExpr::Result { ok, err } => {
-            let mut err_type = type_expr_dart_type(err);
-            if err_type.as_str() == "String" {
-                err_type = "$$BoltFFIException".to_string();
-            }
-            format!("$$BoltFFIResult<{}, {}>", type_expr_dart_type(ok), err_type)
+            format!(
+                "$$BoltFFIResult<{}, {}>",
+                type_expr_dart_type(ok),
+                match err.as_ref() {
+                    TypeExpr::String => "$$BoltFFIException".to_string(),
+                    _ => type_expr_dart_type(err),
+                },
+            )
         }
         TypeExpr::Record(id) => render_type_name(id.as_str()),
         TypeExpr::Enum(id) => render_type_name(id.as_str()),
@@ -460,17 +463,24 @@ pub fn emit_writer_write(seq: &WriteSeq, writer_name: &str, value: &str) -> Stri
                 "{writer_name}.writeOptional({value}, (value, {writer_name}) {{ {inner_write_expr} }});"
             )
         }
-        Some(WriteOp::Result { ok, err, .. }) => format!(
-            r#"
+        Some(WriteOp::Result { ok, err, .. }) => {
+            let err_op = err.ops.first().expect("write ops");
+
+            format!(
+                r#"
 {writer_name}.writeResult(
   {value},
   (value, {writer_name}) {{ {} }},
-  (value, {writer_name}) {{ {} }}
+  (value, {writer_name}) {{ {} }} 
 );
-            "#,
-            emit_writer_write(ok, writer_name, "value"),
-            emit_writer_write(err, writer_name, "value"),
-        ),
+                "#,
+                emit_writer_write(ok, writer_name, "value"),
+                match err_op {
+                    WriteOp::String { .. } => format!("value._m$wireEncode({writer_name});"),
+                    _ => emit_writer_write(err, writer_name, "value"),
+                }
+            )
+        }
         _ => ";".to_string(),
     }
 }
@@ -573,7 +583,12 @@ pub fn emit_reader_read(seq: &ReadSeq, reader_name: &str) -> String {
         } => emit_reader_vec(element_type, element, layout, reader_name),
         ReadOp::Result { ok, err, .. } => {
             let ok_expr = emit_reader_read(ok, reader_name);
-            let err_expr = emit_reader_read(err, reader_name);
+            let err_op = err.ops.first().expect("read ops");
+
+            let err_expr = match err_op {
+                ReadOp::String { .. } => format!("$$BoltFFIException._m$wireDecode({reader_name})"),
+                _ => emit_reader_read(err, reader_name),
+            };
             format!(
                 r#"
 {reader_name}.readResult(

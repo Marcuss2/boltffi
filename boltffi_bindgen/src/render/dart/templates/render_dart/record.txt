@@ -64,7 +64,7 @@ final class {{ record.name }}{% if record.is_error %} implements Exception{% end
 
   factory {{ record.name }}._m$blittableDecodeFromPtrLen($$ffi.Pointer<$$ffi.Uint8> _p$ptr, int _p$len) {
     if (_p$len != _k$structSize) {
-      throw $$BoltFFIException(-1, "BlittbleDecodeFromPtrLenError({{ record.name }}): expected pointer length (${_p$len}) to be equal to struct size (${_k$structSize})");
+      throw $$BoltFFIException("BlittbleDecodeFromPtrLenError({{ record.name }}): expected pointer length (${_p$len}) to be equal to struct size (${_k$structSize})");
     }
 
     return {{ record.name }}._m$fromStruct(_p$ptr.cast<{{ layout.struct_name }}>().ref);

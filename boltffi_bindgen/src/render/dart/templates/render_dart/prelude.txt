@@ -47,14 +47,23 @@ final class _$$BoltFFICallbackHandle extends $$ffi.Struct {
 }
 
 final class $$BoltFFIException implements Exception {
-  final int code;
   final String message;
 
-  const $$BoltFFIException(this.code, this.message);
+  const $$BoltFFIException(this.message);
+
+  factory $$BoltFFIException._m$wireDecode(_$$WireReader _p$reader) {
+    return $$BoltFFIException(_p$reader.readString());
+  }
+
+  void _m$wireEncode(_$$WireWriter _p$writer) {
+    _p$writer.writeString(message);
+  }
+
+  int _m$wireEncodedSize() => (4 + (message.length * 3));
 
   @override
   String toString() {
-    return 'BoltFFIException ($code): $message';
+    return '[BoltFFIException] $message';
   }
 }
 
@@ -394,7 +403,7 @@ class _$$WireReader {
     return switch (b) {
       0 => false,
       1 => true,
-      _ => throw $$BoltFFIException(-1, "Invalid bool value: $b"),
+      _ => throw $$BoltFFIException("Invalid bool value: $b"),
     };
   }
 
@@ -538,7 +547,7 @@ class _$$WireReader {
     return switch (tag) {
       0 => null,
       1 => onSome(this),
-      _ => throw $$BoltFFIException(-1, "Invalid Optional tag: $tag"),
+      _ => throw $$BoltFFIException("Invalid Optional tag: $tag"),
     };
   }
 
@@ -552,7 +561,7 @@ class _$$WireReader {
     return switch (tag) {
       0 => $$BoltFFIResult.ok(onOk(this)),
       1 => $$BoltFFIResult.err(onErr(this)),
-      _ => throw $$BoltFFIException(-1, "Invalid Result tag: $tag"),
+      _ => throw $$BoltFFIException("Invalid Result tag: $tag"),
     };
   }
 }
@@ -661,7 +670,7 @@ class _$$BytesReader {
     return switch (b) {
       0 => false,
       1 => true,
-      _ => throw $$BoltFFIException(-1, "Invalid bool value: $b"),
+      _ => throw $$BoltFFIException("Invalid bool value: $b"),
     };
   }
 
@@ -841,7 +850,7 @@ class _$$BytesReader {
     return switch (tag) {
       0 => null,
       1 => onSome(this),
-      _ => throw $$BoltFFIException(-1, "Invalid Optional tag: $tag"),
+      _ => throw $$BoltFFIException("Invalid Optional tag: $tag"),
     };
   }
 
@@ -855,7 +864,7 @@ class _$$BytesReader {
     return switch (tag) {
       0 => $$BoltFFIResult.ok(onOk(this)),
       1 => $$BoltFFIResult.err(onErr(this)),
-      _ => throw $$BoltFFIException(-1, "Invalid Result tag: $tag"),
+      _ => throw $$BoltFFIException("Invalid Result tag: $tag"),
     };
   }
 }
@@ -943,7 +952,7 @@ final class _$$BoltFFIAsync {
         case _k$RustFuturePoll$MaybeReady:
           pollFuture(handle, data, completerCallbackCallable.nativeFunction);
         case _:
-          throw $$BoltFFIException(-1, "Unexpected poll result: $res");
+          throw $$BoltFFIException("Unexpected poll result: $res");
       }
     }
 
