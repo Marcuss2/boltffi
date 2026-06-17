@@ -1,7 +1,7 @@
 use crate::{
     ir::{AbiEnumField, AbiEnumPayload, AbiEnumVariant, EnumDef, EnumRepr},
     render::dart::{
-        DartEnum, DartEnumField, DartEnumKind, DartEnumVariant, DartType, NamingConvention,
+        DartEnum, DartEnumField, DartEnumKind, DartEnumVariant, DartType, NamingConvention, emit,
     },
 };
 
@@ -13,7 +13,7 @@ impl<'a> super::DartLowerer<'a> {
             name: field_name,
             dart_type: DartType::from_type_expr(&field.type_expr, &self.ffi.catalog),
             read_seq: field.decode.clone(),
-            write_seq: field.encode.clone(),
+            write_seq: emit::remap_write_seq(field.encode.clone()),
         }
     }
 

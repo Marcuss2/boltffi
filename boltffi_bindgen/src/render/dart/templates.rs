@@ -11,9 +11,21 @@ pub struct CustomTypesTemplate<'a> {
 }
 
 #[derive(Template)]
-#[template(path = "render_dart/native_functions.txt", escape = "none")]
-pub struct NativeFunctionsTemplate<'a> {
-    pub cfuncs: &'a [super::DartNativeFunction],
+#[template(path = "render_dart/sync_extern_function.txt", escape = "none")]
+pub struct SyncExternFunctionTemplate<'a> {
+    pub ffi_def: &'a super::DartFFIFunctionDef,
+}
+
+#[derive(Template)]
+#[template(path = "render_dart/async_extern_function.txt", escape = "none")]
+pub struct AsyncExternFunctionTemplate<'a> {
+    pub async_def: &'a super::DartFFIAsyncFunctionDef,
+}
+
+#[derive(Template)]
+#[template(path = "render_dart/extern_function.txt", escape = "none")]
+pub struct ExternFunctionTemplate<'a> {
+    pub func: &'a super::DartFunction,
 }
 
 #[derive(Template)]
@@ -59,6 +71,12 @@ pub struct CallbackTemplate<'a> {
 #[template(path = "render_dart/class.txt", escape = "none")]
 pub struct ClassTemplate<'a> {
     pub class: &'a super::DartClass,
+}
+
+#[derive(Template)]
+#[template(path = "render_dart/callable.txt", escape = "none")]
+pub struct CallableTemplate<'a> {
+    pub func: &'a super::DartFunction,
 }
 
 #[cfg(test)]

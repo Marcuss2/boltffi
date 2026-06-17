@@ -1,4 +1,4 @@
-final class {{ cb.native.vtable_struct_name }} extends $$ffi.Struct {
+final class {{ cb.vtable_struct_name }} extends $$ffi.Struct {
   external $$ffi.Pointer<
     $$ffi.NativeFunction<
       $$ffi.Void Function($$ffi.Uint64)
@@ -10,25 +10,25 @@ final class {{ cb.native.vtable_struct_name }} extends $$ffi.Struct {
       $$ffi.Uint64 Function($$ffi.Uint64)
     >
   > clone;
-{% for method in cb.native.methods %}
+{% for method in cb.methods %}
   external $$ffi.Pointer<
     $$ffi.NativeFunction<
       $$ffi.Void Function(
-{%- for param in method.params %}
-        {{ param.native_type.native_type() }},
-{%- endfor %}
+{%- for arg in method.ffi_sig.args -%}
+        {{ arg.ty.native_type() }}{% if !loop.last %}, {% endif %}
+{%- endfor -%}
     )
     >
-  > {{ method.vtable_field_name }};
+  > {{ method.name }};
 {% endfor -%}
 }
 
 abstract interface class {{ cb.class_name }} {
 {%- for method in cb.methods %}
-  {% if method.is_async() %}Future<{{ method.ret_ty.dart_type() }}>{% else %}{{ method.ret_ty.dart_type() }}{% endif %} {{ method.name }}(
-{%- for param in method.params %}
-    {{ param.ty.dart_type() }} {{ param.name }},
-{%- endfor %}
+  {% if method.is_async() %}Future<{{ method.sig.ret.dart_type() }}>{% else %}{{ method.sig.ret.dart_type() }}{% endif %} {{ method.name }}(
+{%- for arg in method.sig.args -%}
+    {{ arg.ty.dart_type() }} {{ arg.name }}{% if !loop.last %}, {% endif %}
+{%- endfor -%}
   );
 {% endfor -%}
 }
@@ -36,45 +36,45 @@ abstract interface class {{ cb.class_name }} {
 final class {{ cb.impl_class_name }} {
   static final _$$BoltFFIHandleMap<{{ cb.class_name }}> map = _$$BoltFFIHandleMap();
 
-  static final _$$BoltFFIPtr vtable = (() {
-    final vtable = _$$BoltFFICalloc.alloc(
-      $$ffi.sizeOf<{{ cb.native.vtable_struct_name }}>(),
+  static final _$$BoltCallocPtr<{{ cb.vtable_struct_name }}> vtable = (() {
+    final vtable = _$$BoltCalloc.alloc<{{ cb.vtable_struct_name }}>(
+      $$ffi.sizeOf<{{ cb.vtable_struct_name }}>(),
     );
 
-    vtable.ptr.cast<{{ cb.native.vtable_struct_name }}>()
+    vtable.ptr
       ..ref.free = $$ffi.Pointer.fromFunction({{ cb.impl_class_name }}.free)
       ..ref.clone = $$ffi.Pointer.fromFunction({{ cb.impl_class_name }}.clone, 0)
-{%- for method in cb.native.methods %}
-      ..ref.{{ method.vtable_field_name }} = $$ffi.Pointer.fromFunction({{ cb.impl_class_name }}.{{ method.vtable_field_name }})
+{%- for method in cb.methods %}
+      ..ref.{{ method.name }} = $$ffi.Pointer.fromFunction({{ cb.impl_class_name }}.{{ method.name }})
 {%- endfor %};
 
     return vtable;
   })();
 
-  static _$$BoltFFICallbackHandle createCallbackHandle({{ cb.class_name }} value) {
+  static _$$BoltCallbackHandle createCallbackHandle({{ cb.class_name }} value) {
     return $$ffi.Struct.create()
       ..handle = map.insert(value)
-      ..vtable = vtable.ptr;
+      ..vtable = vtable.ptr.cast<$$ffi.Void>();
   }
 
   static void free(int handle) => map.remove(handle);
 
   static int clone(int handle) => map.clone(handle);
-{% for method in cb.native.methods %}
-  static void {{ method.vtable_field_name }}(
-{%- for param in method.params %}
-    {{ param.native_type.dart_sub_type() }} {{ param.name }},
-{%- endfor %}
+{% for method in cb.methods %}
+  static void {{ method.name }}(
+{%- for arg in method.ffi_sig.args -%}
+    {{ arg.ty.sub_type() }} {{ arg.name }}{% if !loop.last %}, {% endif %}
+{%- endfor -%}
   ){% if method.is_async() %} async{% endif %} {
     final l$impl = map.get(_p$handle);
 
     if (l$impl == null) {
-      throw $$BoltFFIException("{{ cb.class_name }}: invalid handle `${_p$handle}`");
+      throw $$BoltException("{{ cb.class_name }}: invalid handle `${_p$handle}`");
     }
 
     try {
     } catch (e) {
     }
   }
-{% endfor %}
+{% endfor -%}
 }

@@ -3,8 +3,9 @@ use boltffi_ffi_rules::callable::ExecutionKind;
 #[derive(Debug, Clone)]
 pub struct DartNativeCallbackMethod {
     pub vtable_field_name: String,
-    pub params: Vec<super::DartNativeFunctionParam>,
-    pub return_type: super::DartNativeType,
+    pub sig: super::DartFFIFunctionSig,
+    pub params: Vec<super::DartFFIClosureParam>,
+    pub return_type: super::DartFFIType,
     pub kind: ExecutionKind,
 }
 
@@ -23,8 +24,9 @@ pub struct DartNativeCallback {
 #[derive(Debug, Clone)]
 pub struct DartCallbackMethod {
     pub name: String,
-    pub params: Vec<super::DartFunctionParam>,
-    pub ret_ty: super::DartType,
+    pub sig: super::DartFunctionSig,
+    pub ffi_sig: super::DartFFIFunctionSig,
+    pub params: Vec<super::DartFFIClosureParam>,
     pub kind: ExecutionKind,
 }
 
@@ -38,6 +40,6 @@ impl DartCallbackMethod {
 pub struct DartCallback {
     pub class_name: String,
     pub impl_class_name: String,
+    pub vtable_struct_name: String,
     pub methods: Vec<DartCallbackMethod>,
-    pub native: DartNativeCallback,
 }

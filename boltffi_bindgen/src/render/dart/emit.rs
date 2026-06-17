@@ -2,15 +2,15 @@ use askama::Template as _;
 
 use crate::{
     ir::{
-        BuiltinId, EnumLayout, PrimitiveType, ReadOp, ReadSeq, ReturnDef, SizeExpr, TypeExpr,
-        ValueExpr, VecLayout, WriteOp, WriteSeq,
+        BuiltinId, EnumLayout, PrimitiveType, ReadOp, ReadSeq, RecordId, ReturnDef, SizeExpr,
+        TypeExpr, ValueExpr, VecLayout, WireSizeOwner, WriteOp, WriteSeq,
     },
     render::dart::{
         DartLibrary, NamingConvention,
         templates::{
-            BuildHookTemplate, CallbackTemplate, ClassTemplate, CustomTypesTemplate,
-            EnhancedEnumTemplate, NativeFunctionsTemplate, PreludeTemplate, PubspecTemplate,
-            RecordTemplate, SealedClassEnumTemplate,
+            BuildHookTemplate, CallableTemplate, CallbackTemplate, ClassTemplate,
+            CustomTypesTemplate, EnhancedEnumTemplate, ExternFunctionTemplate, PreludeTemplate,
+            PubspecTemplate, RecordTemplate, SealedClassEnumTemplate,
         },
     },
 };
@@ -29,7 +29,6 @@ impl DartEmitter {
 
         output.push_str(PreludeTemplate {}.render().unwrap().as_str());
 
-        output.push_str("\n\n");
         output.push_str(
             CustomTypesTemplate {
                 custom_types: &library.custom_types,
@@ -40,7 +39,6 @@ impl DartEmitter {
         );
 
         for r in &library.records {
-            output.push_str("\n\n");
             output.push_str(RecordTemplate { record: r }.render().unwrap().as_str());
         }
 
@@ -53,29 +51,24 @@ impl DartEmitter {
                     SealedClassEnumTemplate { dart_enum: e }.render().unwrap()
                 }
             };
-            output.push_str("\n\n");
             output.push_str(source.as_str());
         }
 
         for cb in &library.callbacks {
-            output.push_str("\n\n");
             output.push_str(CallbackTemplate { cb }.render().unwrap().as_str());
         }
 
         for class in &library.classes {
-            output.push_str("\n\n");
             output.push_str(ClassTemplate { class }.render().unwrap().as_str());
         }
 
-        output.push_str("\n\n");
-        output.push_str(
-            NativeFunctionsTemplate {
-                cfuncs: &library.native.functions,
-            }
-            .render()
-            .unwrap()
-            .as_str(),
-        );
+        for func in &library.functions {
+            output.push_str(ExternFunctionTemplate { func }.render().unwrap().as_str());
+        }
+
+        for func in &library.functions {
+            output.push_str(CallableTemplate { func }.render().unwrap().as_str());
+        }
 
         DartPackage {
             pubspec: PubspecTemplate {
@@ -173,10 +166,10 @@ pub fn type_expr_dart_type(ty: &TypeExpr) -> String {
         TypeExpr::Option(inner) => format!("{}?", type_expr_dart_type(inner)),
         TypeExpr::Result { ok, err } => {
             format!(
-                "$$BoltFFIResult<{}, {}>",
+                "$$BoltResult<{}, {}>",
                 type_expr_dart_type(ok),
                 match err.as_ref() {
-                    TypeExpr::String => "$$BoltFFIException".to_string(),
+                    TypeExpr::String => "$$BoltException".to_string(),
                     _ => type_expr_dart_type(err),
                 },
             )
@@ -202,7 +195,7 @@ pub fn return_def_dart_type(return_def: &ReturnDef) -> String {
         ReturnDef::Void => "void".to_string(),
         ReturnDef::Value(type_expr) => type_expr_dart_type(type_expr),
         ReturnDef::Result { ok, err } => format!(
-            "$$BoltFFIResult<{}, {}>",
+            "$$BoltResult<{}, {}>",
             type_expr_dart_type(ok),
             type_expr_dart_type(err)
         ),
@@ -348,11 +341,11 @@ fn enum_tag_write_expr(tag_type: PrimitiveType, writer_name: &str, value: &str) 
 
 fn emit_write_builtin(id: &BuiltinId, writer_name: &str, value: &str) -> String {
     match id.as_str() {
-        "Duration" => format!("{}.writeDuration({});", writer_name, value),
-        "SystemTime" => format!("{}.writeInstant({});", writer_name, value),
-        "Uuid" => format!("{}.writeUuid({});", writer_name, value),
-        "Url" => format!("{}.writeUri({});", writer_name, value),
-        _ => format!("{}.writeString({});", writer_name, value),
+        "Duration" => format!("{}.writeDuration({})", writer_name, value),
+        "SystemTime" => format!("{}.writeInstant({})", writer_name, value),
+        "Uuid" => format!("{}.writeUuid({})", writer_name, value),
+        "Url" => format!("{}.writeUri({})", writer_name, value),
+        _ => format!("{}.writeString({})", writer_name, value),
     }
 }
 
@@ -371,7 +364,7 @@ fn write_seq_dart_type(seq: &WriteSeq) -> String {
         }
         Some(WriteOp::Option { some, .. }) => format!("{}?", write_seq_dart_type(some)),
         Some(WriteOp::Result { ok, err, .. }) => format!(
-            "$$BoltFFIResult<{}, {}>",
+            "$$BoltResult<{}, {}>",
             write_seq_dart_type(ok),
             write_seq_dart_type(err)
         ),
@@ -405,12 +398,12 @@ fn emit_writer_vec(
                     | PrimitiveType::F64 => value.to_string(),
                 };
 
-                format!("{writer_name}.writeTypedList({value});")
+                format!("{writer_name}.writeBytes({value})")
             }
             _ => {
                 let inner_write_expr = emit_writer_write(element, writer_name, "item");
                 format!(
-                    "{writer_name}.writeList({value}, (item, {writer_name}) {{ {} }});",
+                    "{writer_name}.writeList({value}, (item, {writer_name}) {{ {}; }})",
                     inner_write_expr
                 )
             }
@@ -419,14 +412,14 @@ fn emit_writer_vec(
             TypeExpr::Primitive(primitive) => {
                 let inner_write_expr = emit_write_primitive(*primitive, writer_name, "item");
                 format!(
-                    "{writer_name}.writeList({value}, (item, {writer_name}) {{ {} }});",
+                    "{writer_name}.writeList({value}, (item, {writer_name}) {{ {}; }})",
                     inner_write_expr
                 )
             }
             _ => {
                 let inner_write_expr = emit_writer_write(element, writer_name, "item");
                 format!(
-                    "{writer_name}.writeList({value}, (item, {writer_name}) {{ {} }});",
+                    "{writer_name}.writeList({value}, (item, {writer_name}) {{ {}; }})",
                     inner_write_expr
                 )
             }
@@ -438,15 +431,15 @@ pub fn emit_writer_write(seq: &WriteSeq, writer_name: &str, value: &str) -> Stri
     match seq.ops.first() {
         Some(WriteOp::Primitive { primitive, .. }) => {
             format!(
-                "{writer_name}.{}({});",
+                "{writer_name}.{}({})",
                 primitive_write_method(*primitive),
                 value,
             )
         }
-        Some(WriteOp::String { .. }) => format!("{writer_name}.writeString({value});"),
+        Some(WriteOp::String { .. }) => format!("{writer_name}.writeString({value})"),
         Some(WriteOp::Builtin { id, .. }) => emit_write_builtin(id, writer_name, value),
-        Some(WriteOp::Record { .. }) => format!("{value}._m$wireEncode({writer_name});",),
-        Some(WriteOp::Enum { .. }) => format!("{value}._m$wireEncode({writer_name});"),
+        Some(WriteOp::Record { .. }) => format!("{value}._m$wireEncode({writer_name})",),
+        Some(WriteOp::Enum { .. }) => format!("{value}._m$wireEncode({writer_name})"),
         Some(WriteOp::Custom { underlying, .. }) => {
             emit_writer_write(underlying, writer_name, value)
         }
@@ -460,28 +453,22 @@ pub fn emit_writer_write(seq: &WriteSeq, writer_name: &str, value: &str) -> Stri
             let inner_write_expr = emit_writer_write(some, writer_name, "value");
 
             format!(
-                "{writer_name}.writeOptional({value}, (value, {writer_name}) {{ {inner_write_expr} }});"
+                "{writer_name}.writeOptional({value}, (value, {writer_name}) {{ {inner_write_expr}; }})"
             )
         }
         Some(WriteOp::Result { ok, err, .. }) => {
             let err_op = err.ops.first().expect("write ops");
 
             format!(
-                r#"
-{writer_name}.writeResult(
-  {value},
-  (value, {writer_name}) {{ {} }},
-  (value, {writer_name}) {{ {} }} 
-);
-                "#,
+                r#"{writer_name}.writeResult({value}, (value, {writer_name}) {{ {}; }}, (value, {writer_name}) {{ {}; }})"#,
                 emit_writer_write(ok, writer_name, "value"),
                 match err_op {
-                    WriteOp::String { .. } => format!("value._m$wireEncode({writer_name});"),
+                    WriteOp::String { .. } => format!("value._m$wireEncode({writer_name})"),
                     _ => emit_writer_write(err, writer_name, "value"),
                 }
             )
         }
-        _ => ";".to_string(),
+        _ => String::new(),
     }
 }
 
@@ -647,10 +634,34 @@ fn remap_size_expr_value_expr(expr: &SizeExpr, v: ValueExpr) -> SizeExpr {
     }
 }
 
+pub fn remap_write_seq(mut seq: WriteSeq) -> WriteSeq {
+    match seq.ops.first_mut() {
+        Some(WriteOp::Result { err: res_err, .. }) => {
+            let SizeExpr::ResultSize {
+                err: seq_res_err_size,
+                ..
+            } = &mut seq.size
+            else {
+                unreachable!()
+            };
+            let res_err_op = res_err.ops.first().expect("write op");
+            if let WriteOp::String { value } = res_err_op {
+                **seq_res_err_size = SizeExpr::WireSize {
+                    value: value.clone(),
+                    owner: Some(WireSizeOwner::Record(RecordId::new("_$$BoltException"))),
+                };
+                res_err.size = seq_res_err_size.as_ref().clone();
+            }
+            seq
+        }
+        _ => seq,
+    }
+}
+
 fn emit_vec_size(value: &str, inner: &SizeExpr, layout: &VecLayout) -> String {
     match layout {
-        VecLayout::Blittable { .. } => {
-            format!("(4 + {}.length * {})", value, emit_size_expr(inner))
+        VecLayout::Blittable { element_size } => {
+            format!("(4 + ({}.length * {}))", value, element_size)
         }
         VecLayout::Encoded => format!(
             "{value}.fold<int>(4, (sum, item) => sum + {})",
@@ -713,7 +724,7 @@ pub fn emit_size_expr(size: &SizeExpr) -> String {
                 ValueExpr::Var("value".to_string()),
             ));
             format!(
-                "1 + (switch ({}) {{ $$BoltFFIResult$Ok(:final value) => {}, $$BoltFFIResult$Err(:final value) => {} }})",
+                "1 + (switch ({}) {{ $$BoltResult$Ok(:final value) => {}, $$BoltResult$Err(:final value) => {} }})",
                 render_value(value),
                 ok_expr,
                 err_expr

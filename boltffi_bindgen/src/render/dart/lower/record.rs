@@ -4,8 +4,8 @@ use crate::{
         RecordId, WriteOp, WriteSeq,
     },
     render::dart::{
-        DartBlittableField, DartBlittableLayout, DartNativeType, DartRecord, DartRecordField,
-        NamingConvention, emit,
+        DartBlittableField, DartBlittableLayout, DartFFIType, DartRecord, DartRecordField,
+        DartRecordInterface, NamingConvention, emit,
     },
 };
 
@@ -33,7 +33,7 @@ impl<'a> super::DartLowerer<'a> {
             Some(WriteOp::Record { fields, .. }) => fields
                 .iter()
                 .find(|field| field.name == *field_name)
-                .map(|field| field.seq.clone()),
+                .map(|field| emit::remap_write_seq(field.seq.clone())),
             _ => None,
         }
     }
@@ -77,7 +77,7 @@ impl<'a> super::DartLowerer<'a> {
         DartBlittableField {
             name,
             offset,
-            native_type: DartNativeType::Primitive(primitive),
+            native_type: DartFFIType::from_primitive(primitive),
             primitive,
             offset_const_name,
         }
@@ -126,9 +126,14 @@ impl<'a> super::DartLowerer<'a> {
             .map(|(id, meth_def)| self.lower_method(meth_def, id))
             .collect();
 
+        let mut interfaces = vec![];
+        if record.is_error {
+            interfaces.push(DartRecordInterface::Exception);
+        }
+
         DartRecord {
             name,
-            is_error: record.is_error,
+            interfaces,
             fields,
             blittable_layout,
             constructors,
@@ -248,7 +253,11 @@ mod test {
 
         let output = DartEmitter::emit(&library, "test");
 
-        assert!(library.records[0].is_error);
+        assert!(
+            library.records[0]
+                .interfaces
+                .contains(&DartRecordInterface::Exception)
+        );
         assert!(
             output
                 .lib

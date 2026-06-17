@@ -1,6 +1,6 @@
 use crate::{
     ir::{ReadSeq, StreamMode},
-    render::dart::emit,
+    render::dart::{DartFFIFunctionDef, DartFFIType, emit},
 };
 
 #[derive(Debug, Clone)]
@@ -8,14 +8,14 @@ pub struct DartStream {
     pub name: String,
     pub item_ty: super::DartType,
     pub item_read_seq: ReadSeq,
-    pub ffi_item_ty: super::DartNativeType,
+    pub ffi_item_ty: DartFFIType,
     pub ffi_item_size: Option<usize>,
-    pub subscribe_fn: super::DartNativeFunction,
-    pub poll_fn: super::DartNativeFunction,
-    pub pop_batch_fn: super::DartNativeFunction,
-    pub wait_fn: super::DartNativeFunction,
-    pub unsubscribe_fn: super::DartNativeFunction,
-    pub free_fn: super::DartNativeFunction,
+    pub subscribe_fn: DartFFIFunctionDef,
+    pub poll_fn: DartFFIFunctionDef,
+    pub pop_batch_fn: DartFFIFunctionDef,
+    pub wait_fn: DartFFIFunctionDef,
+    pub unsubscribe_fn: DartFFIFunctionDef,
+    pub free_fn: DartFFIFunctionDef,
     pub mode: StreamMode,
 }
 

@@ -1,0 +1,97 @@
+{%- match func.ty %}
+{%- when super::DartFunctionType::TopLevel with { name: func_name, .. } %}
+{% if func.is_async() %}Future<{{ func.sig.ret.dart_type() }}>{% else %}{{ func.sig.ret.dart_type() }}{% endif %} {{ func_name }}
+{%- when super::DartFunctionType::Method with { name: meth_name, receiver, owner } %}
+{% if func.is_async() %}Future<{{ func.sig.ret.dart_type() }}>{% else %}{{ func.sig.ret.dart_type() }}{% endif %} {{ meth_name }} 
+{%- when super::DartFunctionType::Constructor with { kind, is_fallible, owner } %}
+{%- match kind %}
+{%- when super::DartConstructorKind::Default %}
+factory {{ owner.name() }}
+{%- when super::DartConstructorKind::Named with { name: ctor_name } %}
+factory {{ owner.name() }}.{{ ctor_name }}
+{%- endmatch %}
+{%- when _ -%}
+{%- endmatch -%}
+(
+{%- for arg in func.sig.args -%}
+  {{ arg.ty.dart_type() }} {{ arg.name }}{% if !loop.last %}, {% endif %}
+{%- endfor -%}
+){% if func.is_async() %} async{% endif %} {
+{%- if let Some(self_wire_size) = func.self_wire_size() %}
+  final {{ func.self_storage_name() }} = _$$BoltCalloc.alloc<$$ffi.Uint8>({{ self_wire_size }});
+{%- endif %}
+{%- for param in func.params %}
+{%- match param.passing %}
+{%- when super::DartFFIParamPassing::WireEncoded %}
+  final {{ param.storage_name() }} = _$$BoltCalloc.alloc<$$ffi.Uint8>({{ param.wire_size_expr() }});
+{%- when _ -%}
+{%- endmatch %}
+{%- endfor %}
+{%- if let Some(self_wire_size) = func.self_wire_size() %}
+  final {{ func.self_wire_name() }} = _$$BoltWireEncoder(_$$BoltBufWriter.fromSpan({{ func.self_storage_name() }}.ptr, {{ func.self_storage_name() }}.len));
+{%- endif %}
+{%- for param in func.params %}
+{%- match param.passing %}
+{%- when super::DartFFIParamPassing::WireEncoded %}
+  final {{ param.buf_writer_name() }} = _$$BoltWireEncoder(_$$BoltBufWriter.fromSpan({{ param.storage_name() }}.ptr, {{ param.storage_name() }}.len));
+{%- when super::DartFFIParamPassing::Bytes with (_) %}
+{%- if let Some(bytes_create_expr) = param.bytes_create_expr() %}
+  final {{ param.bytes_name() }} = {{ bytes_create_expr }};
+{%- endif %}
+  final {{ param.storage_name() }} = _$$BoltCalloc.alloc<$$ffi.Uint8>({{ param.bytes_len_expr() }});
+  final {{ param.buf_writer_name() }} = _$$BoltBufWriter.fromSpan({{ param.storage_name() }}.ptr, {{ param.storage_name() }}.len);
+{%- when super::DartFFIParamPassing::Closure with (cb_def) %}
+  final {{ param.callable_name() }} = $$ffi.NativeCallable<
+    {{ cb_def.sig.ret.native_type() }} Function(
+{%- for cb_sig_arg in cb_def.sig.args -%}
+      {{ cb_sig_arg.ty.native_type() }}{% if !loop.last %}, {% endif %} 
+{%- endfor -%}
+    )
+  >.isolateLocal((
+{%- for cb_sig_arg in cb_def.sig.args -%}
+    {{ cb_sig_arg.ty.sub_type() }} {{ cb_sig_arg.name }}{% if !loop.last %}, {% endif %} 
+{%- endfor -%}
+  ) {
+{%- for cb_param in cb_def.params %}
+{%- match cb_param.recv %}
+{%- when super::DartFFIParamPassing::WireEncoded %}
+    final {{ cb_param.buf_reader_name() }} = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan({{ cb_param.ffi_param_ptr_name() }}, {{ cb_param.ffi_param_len_name() }}));
+{%- when super::DartFFIParamPassing::Bytes with (_) %}
+{%- when _ -%}
+{%- endmatch %}
+{%- endfor %}
+{%- for cb_param in cb_def.params %}
+{%- match cb_param.recv %}
+{%- when super::DartFFIParamPassing::WireEncoded %}
+    final l${{ cb_param.name }} = {{ cb_param.wire_read_expr() }};
+{%- when super::DartFFIParamPassing::Bytes with (_) %}
+    final l${{ cb_param.name }} = {{ cb_param.bytes_read_expr() }};
+{%- when super::DartFFIParamPassing::Value with (_) %}
+    final l${{ cb_param.name }} = {{ cb_param.value_read_expr() }};
+{%- when _ -%}
+{%- endmatch %}
+{%- endfor %}
+    {{ param.name }}(
+{%- for cb_param in cb_def.params -%}
+      l${{ cb_param.name }}{% if !loop.last %}, {% endif %} 
+{%- endfor -%}
+    );
+  });
+{%- when super::DartFFIParamPassing::CallbackHandle with { class: cb_class, .. } %}
+{%- when _ -%}
+{%- endmatch -%}
+{%- endfor %}
+{%- if let Some(self_wire_encode_expr) = func.self_wire_encode_expr() %}
+  {{ self_wire_encode_expr|indent(2)|trim }};
+{%- endif %}
+{%- for param in func.params %}
+{%- match param.passing %}
+{%- when super::DartFFIParamPassing::WireEncoded %}
+  {{ param.wire_write_expr()|indent(2)|trim }};
+{%- when super::DartFFIParamPassing::Bytes with (_) %}
+  {{ param.bytes_write_expr()|indent(2)|trim }};
+{%- when _ -%}
+{%- endmatch -%}
+{%- endfor %}
+  final _ = {% filter trim | indent(2) -%}{%- include "callable_do_call.txt" %}{% endfilter %};
+}

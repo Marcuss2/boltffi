@@ -37,17 +37,25 @@ pub struct DartBlittableLayout {
 pub struct DartBlittableField {
     pub name: String,
     pub primitive: PrimitiveType,
-    pub native_type: super::DartNativeType,
+    pub native_type: super::DartFFIType,
     pub offset_const_name: String,
     pub offset: usize,
 }
 
 impl DartBlittableField {
-    pub fn blittable_decode_expr(&self, bytes_name: &str) -> String {
+    pub fn primitive_write_method(&self) -> &'static str {
+        emit::primitive_write_method(self.primitive)
+    }
+
+    pub fn primitive_read_method(&self) -> &'static str {
+        emit::primitive_read_method(self.primitive)
+    }
+
+    pub fn blittable_read_expr(&self, bytes_name: &str) -> String {
         emit::emit_read_blittable_value(&self.offset_const_name, self.primitive, bytes_name)
     }
 
-    pub fn blittable_encode_expr(&self, bytes_name: &str) -> String {
+    pub fn blittable_write_expr(&self, bytes_name: &str) -> String {
         emit::emit_write_blittable_value(
             &self.offset_const_name,
             self.primitive,
@@ -57,12 +65,25 @@ impl DartBlittableField {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DartRecordInterface {
+    Exception,
+}
+
+impl DartRecordInterface {
+    pub fn name(&self) -> String {
+        match self {
+            DartRecordInterface::Exception => String::from("Exception"),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct DartRecord {
     pub name: String,
-    pub is_error: bool,
+    pub interfaces: Vec<DartRecordInterface>,
     pub fields: Vec<DartRecordField>,
     pub blittable_layout: Option<DartBlittableLayout>,
-    pub constructors: Vec<super::DartConstructor>,
+    pub constructors: Vec<super::DartFunction>,
     pub methods: Vec<super::DartFunction>,
 }

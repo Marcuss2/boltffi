@@ -47,7 +47,7 @@ pub struct DartEnum {
     pub variants: Vec<DartEnumVariant>,
     pub size_expr: SizeExpr,
     pub is_error: bool,
-    pub constructors: Vec<super::DartConstructor>,
+    pub constructors: Vec<super::DartFunction>,
     pub methods: Vec<super::DartFunction>,
 }
 
@@ -61,7 +61,7 @@ impl DartEnum {
 
     pub fn tag_writer_write(&self, variant: &DartEnumVariant, writer_name: &str) -> String {
         format!(
-            "{writer_name}.{}({});",
+            "{writer_name}.{}({})",
             emit::primitive_write_method(self.tag_type),
             variant.tag
         )

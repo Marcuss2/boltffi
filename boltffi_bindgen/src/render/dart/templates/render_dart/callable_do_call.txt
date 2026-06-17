@@ -1,0 +1,27 @@
+{%- match func.mode %}
+{%- when super::DartFunctionMode::Sync %}
+_f${{ func.ffi_def.symbol }}(
+{%- for ffi_param in func.get_ffi_params() -%}
+  {{ ffi_param }}{% if !loop.last %}, {% endif %}
+{%- endfor -%}
+)
+{%- when super::DartFunctionMode::Async with (async_def) %}
+_$$BoltFFIAsync.create(
+  createFuture: () => _f${{ func.ffi_def.symbol }}(
+{%- for ffi_param in func.get_ffi_params() -%}
+    {{ ffi_param }}{% if !loop.last %}, {% endif %}
+{%- endfor -%}
+  ),
+  pollFuture: _f${{ async_def.poll_symbol }},
+  completeFuture: (handle) {
+    final l$status = $$ffi.Struct.create<_$$BoltFFIStatus>();
+    final l$res = _f${{ async_def.complete_symbol }}(handle, l$status.address);
+    if (l$status.code != 0) {
+      throw $$BoltException("Error completing future: $handle with status code: ${l$status.code}");
+    }
+    return l$res;
+  },
+  freeFuture: _f${{ async_def.free_symbol }},
+  cancelFuture: _f${{ async_def.cancel_symbol }},
+)
+{%- endmatch %}

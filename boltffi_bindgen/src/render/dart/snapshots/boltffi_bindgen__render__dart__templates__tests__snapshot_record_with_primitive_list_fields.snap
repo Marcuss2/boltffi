@@ -3,6 +3,8 @@ source: boltffi_bindgen/src/render/dart/templates.rs
 expression: template.render().unwrap()
 ---
 
+
+
 final class PrimitiveLists {
   $$typed_data.Uint8List u8s;
   $$typed_data.Int8List i8s;
@@ -30,7 +32,7 @@ final class PrimitiveLists {
     required this.bools,
   });
 
-  factory PrimitiveLists._m$wireDecode(_$$WireReader _p$reader) {
+  factory PrimitiveLists._m$wireDecode(_$$BoltWireDecoder _p$reader) {
     return PrimitiveLists(
       u8s: _p$reader.readUint8List(),
       i8s: _p$reader.readInt8List(),
@@ -46,30 +48,31 @@ final class PrimitiveLists {
     );
   }
 
-  void _m$wireEncode(_$$WireWriter _p$writer) {
-    _p$writer.writeTypedList(u8s);
-    _p$writer.writeTypedList(i8s);
-    _p$writer.writeTypedList(u16s);
-    _p$writer.writeTypedList(i16s);
-    _p$writer.writeTypedList(u32s);
-    _p$writer.writeTypedList(i32s);
-    _p$writer.writeTypedList(u64s);
-    _p$writer.writeTypedList(i64s);
-    _p$writer.writeTypedList(f32s);
-    _p$writer.writeTypedList(f64s);
-    _p$writer.writeTypedList(bools._bytes);
+  void _m$wireEncode(_$$BoltWireEncoder _p$writer) {
+    _p$writer.writeBytes(u8s);
+    _p$writer.writeBytes(i8s);
+    _p$writer.writeBytes(u16s);
+    _p$writer.writeBytes(i16s);
+    _p$writer.writeBytes(u32s);
+    _p$writer.writeBytes(i32s);
+    _p$writer.writeBytes(u64s);
+    _p$writer.writeBytes(i64s);
+    _p$writer.writeBytes(f32s);
+    _p$writer.writeBytes(f64s);
+    _p$writer.writeBytes(bools._bytes);
   }
 
   int _m$wireEncodedSize() =>
     (4 + u8s.length) +
-    (4 + i8s.length * 1) +
-    (4 + u16s.length * 2) +
-    (4 + i16s.length * 2) +
-    (4 + u32s.length * 4) +
-    (4 + i32s.length * 4) +
-    (4 + u64s.length * 8) +
-    (4 + i64s.length * 8) +
-    (4 + f32s.length * 4) +
-    (4 + f64s.length * 8) +
-    (4 + bools.length * 1);
+    (4 + (i8s.length * 1)) +
+    (4 + (u16s.length * 2)) +
+    (4 + (i16s.length * 2)) +
+    (4 + (u32s.length * 4)) +
+    (4 + (i32s.length * 4)) +
+    (4 + (u64s.length * 8)) +
+    (4 + (i64s.length * 8)) +
+    (4 + (f32s.length * 4)) +
+    (4 + (f64s.length * 8)) +
+    (4 + (bools.length * 1));
+
 }

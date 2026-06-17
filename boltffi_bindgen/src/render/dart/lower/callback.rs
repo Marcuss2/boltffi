@@ -2,12 +2,12 @@ use boltffi_ffi_rules::{callable::ExecutionKind, transport::ValueReturnStrategy}
 
 use crate::{
     ir::{
-        AbiCallbackInvocation, AbiCallbackMethod, CallbackId, CallbackKind, CallbackMethodDef,
-        CallbackTraitDef, ParamRole, PrimitiveType, Transport,
+        AbiCallbackInvocation, AbiCallbackMethod, AbiParam, CallbackId, CallbackKind,
+        CallbackMethodDef, CallbackTraitDef, ParamDef, ParamRole, ReadSeq, Transport,
     },
     render::dart::{
-        DartCallback, DartCallbackMethod, DartNativeCallback, DartNativeCallbackMethod,
-        DartNativeFunctionKind, DartNativeFunctionParam, DartNativeType, DartType,
+        DartCallback, DartCallbackMethod, DartFFIClosureParam, DartFFIFunctionParamSig,
+        DartFFIFunctionSig, DartFFIIntType, DartFFIType, DartFunctionSig, DartType,
         NamingConvention,
     },
 };
@@ -17,89 +17,139 @@ impl<'a> super::DartLowerer<'a> {
         self.abi.callbacks.iter().find(|cb| cb.callback_id == *id)
     }
 
-    fn lower_native_callback_method(&self, m: &AbiCallbackMethod) -> DartNativeCallbackMethod {
-        assert!(matches!(
-            m.params[0].role,
-            ParamRole::Input {
-                transport: Transport::Callback { .. },
-                ..
-            }
-        ));
+    fn lower_closure_param(
+        &self,
+        param_def: &ParamDef,
+        transport: &Transport,
+        decode_ops: &Option<ReadSeq>,
+    ) -> DartFFIClosureParam {
+        let passing = self.param_passing_from_transport(transport);
+        let ty = DartType::from_type_expr(&param_def.type_expr, &self.ffi.catalog);
 
-        let mut params = vec![DartNativeFunctionParam {
+        DartFFIClosureParam {
+            name: param_def.name.to_string(),
+            recv: passing,
+            read_seq: decode_ops.clone(),
+            ty,
+        }
+    }
+
+    pub(super) fn lower_closure_params(
+        &self,
+        param_defs: &[ParamDef],
+        abi_params: &[AbiParam],
+    ) -> Vec<DartFFIClosureParam> {
+        std::iter::zip(param_defs, abi_params)
+            .map(|(param_def, abi_param)| {
+                let ParamRole::Input {
+                    transport,
+                    decode_ops,
+                    ..
+                } = &abi_param.role
+                else {
+                    unreachable!();
+                };
+
+                self.lower_closure_param(param_def, transport, decode_ops)
+            })
+            .collect()
+    }
+
+    fn lower_callback_method(
+        &self,
+        cb: &CallbackMethodDef,
+        abi_meth: &AbiCallbackMethod,
+    ) -> DartCallbackMethod {
+        let params = self.lower_closure_params(&cb.params, &abi_meth.params);
+
+        let mut ffi_args = vec![DartFFIFunctionParamSig {
             name: "_p$handle".to_string(),
-            native_type: DartNativeType::Primitive(PrimitiveType::U64),
+            ty: DartFFIType::Int(DartFFIIntType::Uint64),
         }];
 
-        params.extend(
-            m.params[1..]
+        ffi_args.extend(
+            abi_meth.params[1..]
                 .iter()
-                .map(|p| self.lower_native_function_param(p)),
+                .map(DartFFIFunctionParamSig::from_abi_param),
         );
 
-        match m.execution_kind {
+        match abi_meth.execution_kind {
             ExecutionKind::Sync => {
-                params.push(DartNativeFunctionParam {
+                ffi_args.push(DartFFIFunctionParamSig {
                     name: "_p$outStatus".to_string(),
-                    native_type: DartNativeType::Pointer(Box::new(DartNativeType::Status)),
+                    ty: DartFFIType::Pointer(Box::new(DartFFIType::Status)),
                 });
             }
             ExecutionKind::Async => {
-                let mut callback_params = vec![];
+                let mut callback_params = vec![
+                    // async context handle
+                    DartFFIFunctionParamSig {
+                        name: String::new(),
+                        ty: DartFFIType::Int(DartFFIIntType::Uint64),
+                    },
+                ];
 
                 if !matches!(
-                    m.returns.return_contract().value_strategy(),
+                    abi_meth.returns.return_contract().value_strategy(),
                     ValueReturnStrategy::Void
                 ) {
                     callback_params.extend([
                         // result bytes ptr
-                        DartNativeType::Pointer(Box::new(DartNativeType::Primitive(
-                            PrimitiveType::U8,
-                        ))),
+                        DartFFIFunctionParamSig {
+                            name: String::new(),
+                            ty: DartFFIType::Pointer(Box::new(DartFFIType::Int(
+                                DartFFIIntType::Uint8,
+                            ))),
+                        },
                         // result bytes len
-                        DartNativeType::Primitive(PrimitiveType::USize),
-                    ])
+                        DartFFIFunctionParamSig {
+                            name: String::new(),
+                            ty: DartFFIType::Int(DartFFIIntType::UintPtr),
+                        },
+                    ]);
                 }
                 callback_params.push(
                     // This should be FFIStatus but we choose i32 as it's a valid repr
-                    DartNativeType::Primitive(PrimitiveType::I32),
+                    DartFFIFunctionParamSig {
+                        name: String::new(),
+                        ty: DartFFIType::Int(DartFFIIntType::Int32),
+                    },
                 );
 
-                params.extend([
-                    DartNativeFunctionParam {
+                ffi_args.extend([
+                    DartFFIFunctionParamSig {
                         name: "_p$callback".to_string(),
-                        native_type: DartNativeType::Function {
-                            kind: DartNativeFunctionKind::Callback,
-                            params: callback_params,
-                            return_ty: Box::new(DartNativeType::Void),
+                        ty: DartFFIType::NativeFunction {
+                            sig: Box::new(DartFFIFunctionSig {
+                                args: callback_params,
+                                ret: DartFFIType::Void,
+                            }),
                         },
                     },
-                    DartNativeFunctionParam {
-                        name: "_p$callbackData".to_string(),
-                        native_type: DartNativeType::Primitive(PrimitiveType::U64),
+                    DartFFIFunctionParamSig {
+                        name: "_p$asyncCtx".to_string(),
+                        ty: DartFFIType::Int(DartFFIIntType::Uint64),
                     },
                 ]);
             }
         };
 
-        let return_type =
-            DartNativeType::from_return_shape_and_error_transport(&m.returns, &m.error);
-
-        DartNativeCallbackMethod {
-            vtable_field_name: NamingConvention::property_name(m.vtable_field.as_str()),
-            params,
-            return_type,
-            kind: m.execution_kind,
-        }
-    }
-
-    fn lower_callback_method(&self, cb: &CallbackMethodDef) -> DartCallbackMethod {
-        let params = cb.params.iter().map(|p| self.lower_param(p)).collect();
-
         DartCallbackMethod {
             name: NamingConvention::function_name(cb.id.as_str()),
+            sig: DartFunctionSig::from_params_return_def(
+                &cb.params,
+                &cb.returns,
+                &self.ffi.catalog,
+            ),
+            ffi_sig: DartFFIFunctionSig {
+                args: ffi_args,
+                ret: DartFFIType::from_return_shape_and_error_transport(
+                    &abi_meth.returns,
+                    &abi_meth.error,
+                ),
+            },
             params,
-            ret_ty: DartType::from_return_def(&cb.returns, &self.ffi.catalog),
+            // ret_ty: DartType::from_return_def(&cb.returns, &self.ffi.catalog),
             kind: cb.execution_kind,
         }
     }
@@ -114,26 +164,15 @@ impl<'a> super::DartLowerer<'a> {
             NamingConvention::class_name(abi_cb.vtable_type.as_str())
         );
 
-        let methods = cb_def
-            .methods
-            .iter()
-            .map(|m| self.lower_callback_method(m))
-            .collect();
-
-        let native_methods = abi_cb
-            .methods
-            .iter()
-            .map(|m| self.lower_native_callback_method(m))
+        let methods = std::iter::zip(&cb_def.methods, &abi_cb.methods)
+            .map(|(meth_def, abi_meth)| self.lower_callback_method(meth_def, abi_meth))
             .collect();
 
         DartCallback {
             class_name,
             impl_class_name,
+            vtable_struct_name,
             methods,
-            native: DartNativeCallback {
-                vtable_struct_name,
-                methods: native_methods,
-            },
         }
     }
 

@@ -17,80 +17,48 @@ final class _I$ICallbackVTable extends $$ffi.Struct {
 
   external $$ffi.Pointer<
     $$ffi.NativeFunction<
-      $$ffi.Void Function(
-        $$ffi.Uint64,
-        $$ffi.Uint32,
-        $$ffi.Pointer<$$ffi.Uint32>,
-        $$ffi.Pointer<_$$FFIStatus>,
-    )
+      $$ffi.Void Function($$ffi.Uint64, $$ffi.Uint32, $$ffi.Pointer<$$ffi.Uint32>, $$ffi.Pointer<_$$BoltFFIStatus>)
     >
   > mapU32;
 
   external $$ffi.Pointer<
     $$ffi.NativeFunction<
-      $$ffi.Void Function(
-        $$ffi.Uint64,
-        $$ffi.Pointer<$$ffi.Uint8>,
-        $$ffi.UintPtr,
-        $$ffi.Pointer<$$ffi.Pointer<$$ffi.Uint8>>,
-        $$ffi.Pointer<$$ffi.UintPtr>,
-        $$ffi.Pointer<_$$FFIStatus>,
-    )
+      $$ffi.Void Function($$ffi.Uint64, $$ffi.Pointer<$$ffi.Uint8>, $$ffi.UintPtr, $$ffi.Pointer<$$ffi.Pointer<$$ffi.Uint8>>, $$ffi.Pointer<$$ffi.UintPtr>, $$ffi.Pointer<_$$BoltFFIStatus>)
     >
   > mapStringRef;
 
   external $$ffi.Pointer<
     $$ffi.NativeFunction<
-      $$ffi.Void Function(
-        $$ffi.Uint64,
-        $$ffi.Pointer<$$ffi.Uint8>,
-        $$ffi.UintPtr,
-        $$ffi.Pointer<$$ffi.Pointer<$$ffi.Uint8>>,
-        $$ffi.Pointer<$$ffi.UintPtr>,
-        $$ffi.Pointer<_$$FFIStatus>,
-    )
+      $$ffi.Void Function($$ffi.Uint64, $$ffi.Pointer<$$ffi.Uint8>, $$ffi.UintPtr, $$ffi.Pointer<$$ffi.Pointer<$$ffi.Uint8>>, $$ffi.Pointer<$$ffi.UintPtr>, $$ffi.Pointer<_$$BoltFFIStatus>)
     >
   > mapString;
 
   external $$ffi.Pointer<
     $$ffi.NativeFunction<
-      $$ffi.Void Function(
-        $$ffi.Uint64,
-        $$ffi.Pointer<$$ffi.Uint8>,
-        $$ffi.UintPtr,
-        $$ffi.Pointer<_$$FFIStatus>,
-    )
+      $$ffi.Void Function($$ffi.Uint64, $$ffi.Pointer<$$ffi.Uint8>, $$ffi.UintPtr, $$ffi.Pointer<_$$BoltFFIStatus>)
     >
   > processBytes;
 }
 
 abstract interface class ICallback {
-  int mapU32(
-    int n,
-  );
+  int mapU32(int n);
 
-  String mapStringRef(
-    String s,
-  );
+  String mapStringRef(String s);
 
-  String mapString(
-    String s,
-  );
+  String mapString(String s);
 
-  void processBytes(
-    $$typed_data.Uint8List bytes,
-  );
+  void processBytes($$typed_data.Uint8List bytes);
 }
 
 final class _I$ICallback {
   static final _$$BoltFFIHandleMap<ICallback> map = _$$BoltFFIHandleMap();
 
-  static final _$$BoltFFIPtr vtable = (() {
-    final vtable = _$$BoltFFICalloc.alloc(
+  static final _$$BoltCallocPtr<_I$ICallbackVTable> vtable = (() {
+    final vtable = _$$BoltCalloc.alloc<_I$ICallbackVTable>(
       $$ffi.sizeOf<_I$ICallbackVTable>(),
     );
 
-    vtable.ptr.cast<_I$ICallbackVTable>()
+    vtable.ptr
       ..ref.free = $$ffi.Pointer.fromFunction(_I$ICallback.free)
       ..ref.clone = $$ffi.Pointer.fromFunction(_I$ICallback.clone, 0)
       ..ref.mapU32 = $$ffi.Pointer.fromFunction(_I$ICallback.mapU32)
@@ -101,26 +69,21 @@ final class _I$ICallback {
     return vtable;
   })();
 
-  static _$$BoltFFICallbackHandle createCallbackHandle(ICallback value) {
+  static _$$BoltCallbackHandle createCallbackHandle(ICallback value) {
     return $$ffi.Struct.create()
       ..handle = map.insert(value)
-      ..vtable = vtable.ptr;
+      ..vtable = vtable.ptr.cast<$$ffi.Void>();
   }
 
   static void free(int handle) => map.remove(handle);
 
   static int clone(int handle) => map.clone(handle);
 
-  static void mapU32(
-    int _p$handle,
-    int n,
-    $$ffi.Pointer<$$ffi.Uint32> _p$outPtr,
-    $$ffi.Pointer<_$$FFIStatus> _p$outStatus,
-  ) {
+  static void mapU32(int _p$handle, int n, $$ffi.Pointer<$$ffi.Uint32> _p$outPtr, $$ffi.Pointer<_$$BoltFFIStatus> _p$outStatus) {
     final l$impl = map.get(_p$handle);
 
     if (l$impl == null) {
-      throw $$BoltFFIException("ICallback: invalid handle `${_p$handle}`");
+      throw $$BoltException("ICallback: invalid handle `${_p$handle}`");
     }
 
     try {
@@ -128,18 +91,11 @@ final class _I$ICallback {
     }
   }
 
-  static void mapStringRef(
-    int _p$handle,
-    $$ffi.Pointer<$$ffi.Uint8> sPtr,
-    int sLen,
-    $$ffi.Pointer<$$ffi.Pointer<$$ffi.Uint8>> _p$outPtr,
-    $$ffi.Pointer<$$ffi.UintPtr> _p$outLen,
-    $$ffi.Pointer<_$$FFIStatus> _p$outStatus,
-  ) {
+  static void mapStringRef(int _p$handle, $$ffi.Pointer<$$ffi.Uint8> sPtr, int sLen, $$ffi.Pointer<$$ffi.Pointer<$$ffi.Uint8>> _p$outPtr, $$ffi.Pointer<$$ffi.UintPtr> _p$outLen, $$ffi.Pointer<_$$BoltFFIStatus> _p$outStatus) {
     final l$impl = map.get(_p$handle);
 
     if (l$impl == null) {
-      throw $$BoltFFIException("ICallback: invalid handle `${_p$handle}`");
+      throw $$BoltException("ICallback: invalid handle `${_p$handle}`");
     }
 
     try {
@@ -147,18 +103,11 @@ final class _I$ICallback {
     }
   }
 
-  static void mapString(
-    int _p$handle,
-    $$ffi.Pointer<$$ffi.Uint8> sPtr,
-    int sLen,
-    $$ffi.Pointer<$$ffi.Pointer<$$ffi.Uint8>> _p$outPtr,
-    $$ffi.Pointer<$$ffi.UintPtr> _p$outLen,
-    $$ffi.Pointer<_$$FFIStatus> _p$outStatus,
-  ) {
+  static void mapString(int _p$handle, $$ffi.Pointer<$$ffi.Uint8> sPtr, int sLen, $$ffi.Pointer<$$ffi.Pointer<$$ffi.Uint8>> _p$outPtr, $$ffi.Pointer<$$ffi.UintPtr> _p$outLen, $$ffi.Pointer<_$$BoltFFIStatus> _p$outStatus) {
     final l$impl = map.get(_p$handle);
 
     if (l$impl == null) {
-      throw $$BoltFFIException("ICallback: invalid handle `${_p$handle}`");
+      throw $$BoltException("ICallback: invalid handle `${_p$handle}`");
     }
 
     try {
@@ -166,21 +115,15 @@ final class _I$ICallback {
     }
   }
 
-  static void processBytes(
-    int _p$handle,
-    $$ffi.Pointer<$$ffi.Uint8> bytesPtr,
-    int bytesLen,
-    $$ffi.Pointer<_$$FFIStatus> _p$outStatus,
-  ) {
+  static void processBytes(int _p$handle, $$ffi.Pointer<$$ffi.Uint8> bytesPtr, int bytesLen, $$ffi.Pointer<_$$BoltFFIStatus> _p$outStatus) {
     final l$impl = map.get(_p$handle);
 
     if (l$impl == null) {
-      throw $$BoltFFIException("ICallback: invalid handle `${_p$handle}`");
+      throw $$BoltException("ICallback: invalid handle `${_p$handle}`");
     }
 
     try {
     } catch (e) {
     }
   }
-
 }
