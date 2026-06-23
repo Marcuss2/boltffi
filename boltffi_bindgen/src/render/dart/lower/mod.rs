@@ -5,10 +5,11 @@ use crate::{
         TypeExpr, WriteSeq,
     },
     render::dart::{
-        DartConstructorKind, DartFFIClosureDef, DartFFIFunctionDef, DartFFIFunctionParamSig,
-        DartFFIFunctionSig, DartFFIParamPassing, DartFFIType, DartFunction, DartFunctionCallOwner,
-        DartFunctionMode, DartFunctionParam, DartFunctionSig, DartFunctionType, DartLibrary,
-        DartMethodReceiver, DartType, NamingConvention, emit,
+        DartConstructorKind, DartFFIClosureDef, DartFFIClosureReturns, DartFFIFunctionDef,
+        DartFFIFunctionParamSig, DartFFIFunctionSig, DartFFIReturnsPassing, DartFFIType,
+        DartFFIValuePassing, DartFunction, DartFunctionCallOwner, DartFunctionMode,
+        DartFunctionParam, DartFunctionReturns, DartFunctionSig, DartFunctionType, DartLibrary,
+        DartMethodReceiver, DartReturnType, DartType, NamingConvention, emit,
     },
 };
 
@@ -48,23 +49,26 @@ impl<'a> DartLowerer<'a> {
         self.abi.calls.iter().find(|c| &c.id == call_id).unwrap()
     }
 
-    fn param_passing_from_transport(&self, transport: &Transport) -> DartFFIParamPassing {
+    fn value_passing_from_transport(&self, transport: &Transport) -> DartFFIValuePassing {
         match transport {
-            Transport::Scalar(origin) => DartFFIParamPassing::primitive_value(origin.primitive()),
+            Transport::Scalar(origin) => DartFFIValuePassing::primitive_value(origin.primitive()),
             Transport::Composite(layout) => {
-                DartFFIParamPassing::record_value(layout.record_id.to_string())
+                DartFFIValuePassing::record_value(layout.record_id.to_string())
             }
             Transport::Span(span_content) => match span_content {
                 SpanContent::Scalar(origin) => {
-                    DartFFIParamPassing::primitive_bytes(origin.primitive())
+                    DartFFIValuePassing::primitive_bytes(origin.primitive())
                 }
                 SpanContent::Composite(layout) => {
-                    DartFFIParamPassing::record_bytes(layout.record_id.to_string())
+                    DartFFIValuePassing::record_bytes(layout.record_id.to_string())
                 }
-                SpanContent::Utf8 => DartFFIParamPassing::utf8_bytes(),
-                SpanContent::Encoded(..) => DartFFIParamPassing::WireEncoded,
+                SpanContent::Utf8 => DartFFIValuePassing::utf8_bytes(),
+                SpanContent::Encoded(..) => DartFFIValuePassing::WireEncoded,
             },
-            Transport::Handle { .. } => DartFFIParamPassing::ClassHandle,
+            Transport::Handle { class_id, nullable } => DartFFIValuePassing::ClassHandle {
+                class: class_id.to_string(),
+                nullable: *nullable,
+            },
             Transport::Callback {
                 callback_id,
                 nullable,
@@ -72,7 +76,7 @@ impl<'a> DartLowerer<'a> {
             } => {
                 let cb_def = self.ffi.catalog.resolve_callback(callback_id).unwrap();
                 match cb_def.kind {
-                    CallbackKind::Trait => DartFFIParamPassing::CallbackHandle {
+                    CallbackKind::Trait => DartFFIValuePassing::CallbackHandle {
                         class: callback_id.to_string(),
                         nullable: *nullable,
                     },
@@ -97,7 +101,7 @@ impl<'a> DartLowerer<'a> {
                             .collect::<Vec<_>>();
                         assert!(meth_def.params.len() == input_closure_params.len());
 
-                        DartFFIParamPassing::Closure(DartFFIClosureDef {
+                        DartFFIValuePassing::Closure(Box::new(DartFFIClosureDef {
                             sig: super::DartFFIFunctionSig {
                                 args: std::iter::chain(
                                     // userdata ptr
@@ -128,7 +132,20 @@ impl<'a> DartLowerer<'a> {
                             },
                             params: self
                                 .lower_closure_params(&meth_def.params, &input_closure_params),
-                        })
+                            returns: DartFFIClosureReturns {
+                                ty: DartReturnType::from_return_def(
+                                    &meth_def.returns,
+                                    &self.ffi.catalog,
+                                ),
+                                passing: match &abi_call.returns.transport {
+                                    Some(transport) => DartFFIReturnsPassing::Passing(
+                                        self.value_passing_from_transport(transport),
+                                    ),
+                                    None => DartFFIReturnsPassing::Void,
+                                },
+                                write_seq: abi_call.returns.encode_ops.clone(),
+                            },
+                        }))
                     }
                 }
             }
@@ -141,7 +158,7 @@ impl<'a> DartLowerer<'a> {
         transport: &Transport,
         encode_ops: &Option<WriteSeq>,
     ) -> DartFunctionParam {
-        let passing = self.param_passing_from_transport(transport);
+        let passing = self.value_passing_from_transport(transport);
         let ty = DartType::from_type_expr(&param.type_expr, &self.ffi.catalog);
 
         DartFunctionParam {
@@ -193,18 +210,39 @@ impl<'a> DartLowerer<'a> {
             )
         });
 
+        let is_fallible = match &ty {
+            DartFunctionType::TopLevel { .. } | DartFunctionType::Method { .. } => {
+                matches!(returns, ReturnDef::Result { .. })
+            }
+            DartFunctionType::Constructor { is_fallible, .. } => *is_fallible,
+        };
+
         let mode = match &abi_call.mode {
             CallMode::Sync => DartFunctionMode::Sync,
-            CallMode::Async(call) => DartFunctionMode::Async(super::DartFFIAsyncFunctionDef {
-                poll_symbol: call.poll.to_string(),
-                complete_symbol: call.complete.to_string(),
-                complete_ty: DartFFIType::from_return_shape_and_error_transport(
-                    &call.result,
-                    &call.error,
-                ),
-                cancel_symbol: call.cancel.to_string(),
-                free_symbol: call.free.to_string(),
-            }),
+            CallMode::Async(async_call) => {
+                DartFunctionMode::Async(Box::new(super::DartFFIAsyncFunctionDef {
+                    poll_symbol: async_call.poll.to_string(),
+                    complete_symbol: async_call.complete.to_string(),
+                    complete_ty: DartFFIType::from_return_shape_and_error_transport(
+                        &async_call.result,
+                        &async_call.error,
+                    ),
+                    cancel_symbol: async_call.cancel.to_string(),
+                    free_symbol: async_call.free.to_string(),
+
+                    returns: DartFunctionReturns {
+                        ty: DartReturnType::from_return_def(returns, &self.ffi.catalog),
+                        passing: match &async_call.result.transport {
+                            Some(async_transport) => DartFFIReturnsPassing::Passing(
+                                self.value_passing_from_transport(async_transport),
+                            ),
+                            None => DartFFIReturnsPassing::Void,
+                        },
+                        read_seq: async_call.result.decode_ops.clone(),
+                        is_fallible,
+                    },
+                }))
+            }
         };
 
         DartFunction {
@@ -231,7 +269,17 @@ impl<'a> DartLowerer<'a> {
                 is_leaf: !is_not_leaf,
             },
             sig: DartFunctionSig::from_params_return_def(param_defs, returns, &self.ffi.catalog),
-            returns: DartType::from_return_def(returns, &self.ffi.catalog),
+            returns: DartFunctionReturns {
+                ty: DartReturnType::from_return_def(returns, &self.ffi.catalog),
+                passing: match &abi_call.returns.transport {
+                    Some(transport) => {
+                        DartFFIReturnsPassing::Passing(self.value_passing_from_transport(transport))
+                    }
+                    None => DartFFIReturnsPassing::Void,
+                },
+                read_seq: abi_call.returns.decode_ops.clone(),
+                is_fallible,
+            },
         }
     }
 
@@ -264,6 +312,7 @@ impl<'a> DartLowerer<'a> {
                     },
                 },
                 is_fallible: ctor.is_fallible(),
+                is_optional: ctor.is_optional(),
             },
             abi_call,
             0,
@@ -291,7 +340,7 @@ impl<'a> DartLowerer<'a> {
                 let ParamRole::Input { transport, .. } = &abi_param.role else {
                     unreachable!()
                 };
-                let passing = self.param_passing_from_transport(transport);
+                let passing = self.value_passing_from_transport(transport);
 
                 receiver = DartMethodReceiver::ReceiverPassing(passing);
             }

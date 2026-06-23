@@ -90,7 +90,7 @@ pub struct DartFunctionParamSig {
 #[derive(Debug, Clone)]
 pub struct DartFunctionSig {
     pub args: Vec<DartFunctionParamSig>,
-    pub ret: super::DartType,
+    pub ret: super::DartReturnType,
 }
 
 impl DartFunctionSig {
@@ -107,7 +107,9 @@ impl DartFunctionSig {
                     ty: DartType::from_type_expr(&p.type_expr, type_catalog),
                 })
                 .collect(),
-            ret: DartType::from_return_def(returns, type_catalog),
+            ret: DartReturnType {
+                inner: DartType::from_return_def(returns, type_catalog),
+            },
         }
     }
 }
@@ -370,15 +372,42 @@ pub struct DartClosureParamType {
 #[derive(Debug, Clone)]
 pub struct DartClosureType {
     pub arg_ty: Vec<DartClosureParamType>,
-    pub ret_ty: DartType,
+    pub ret_ty: DartReturnType,
+}
+
+#[derive(Debug, Clone)]
+pub struct DartReturnType {
+    pub(crate) inner: DartType,
+}
+
+impl DartReturnType {
+    pub fn from_return_def(return_def: &ReturnDef, type_catalog: &TypeCatalog) -> Self {
+        let inner = match return_def {
+            ReturnDef::Void => DartType::Void,
+            ReturnDef::Value(ty) => DartType::from_type_expr(ty, type_catalog),
+            ReturnDef::Result { ok, err } => DartType::Result {
+                ok: Box::new(DartType::from_type_expr(ok, type_catalog)),
+                err: Box::new(DartType::from_type_expr(err, type_catalog)),
+            },
+        };
+
+        DartReturnType { inner }
+    }
+
+    pub fn dart_type(&self) -> String {
+        match &self.inner {
+            DartType::Result { ok, .. } => ok.dart_type(),
+            _ => self.inner.dart_type(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
 pub enum DartType {
     Void,
     Bool,
-    Int,
-    Double,
+    Int(DartFFIIntType),
+    Double(DartFFIFloatType),
     String,
     Option(Box<DartType>),
     List(Box<DartType>),
@@ -400,17 +429,18 @@ impl DartType {
     pub fn from_primitive(primitive: PrimitiveType) -> Self {
         match primitive {
             PrimitiveType::Bool => DartType::Bool,
-            PrimitiveType::I8
-            | PrimitiveType::U8
-            | PrimitiveType::I16
-            | PrimitiveType::U16
-            | PrimitiveType::I32
-            | PrimitiveType::U32
-            | PrimitiveType::I64
-            | PrimitiveType::U64
-            | PrimitiveType::ISize
-            | PrimitiveType::USize => DartType::Int,
-            PrimitiveType::F32 | PrimitiveType::F64 => DartType::Double,
+            PrimitiveType::I8 => DartType::Int(DartFFIIntType::Int8),
+            PrimitiveType::U8 => DartType::Int(DartFFIIntType::Uint8),
+            PrimitiveType::I16 => DartType::Int(DartFFIIntType::Int16),
+            PrimitiveType::U16 => DartType::Int(DartFFIIntType::Uint16),
+            PrimitiveType::I32 => DartType::Int(DartFFIIntType::Int32),
+            PrimitiveType::U32 => DartType::Int(DartFFIIntType::Uint32),
+            PrimitiveType::I64 => DartType::Int(DartFFIIntType::Int64),
+            PrimitiveType::U64 => DartType::Int(DartFFIIntType::Uint64),
+            PrimitiveType::ISize => DartType::Int(DartFFIIntType::IntPtr),
+            PrimitiveType::USize => DartType::Int(DartFFIIntType::UintPtr),
+            PrimitiveType::F32 => DartType::Double(DartFFIFloatType::Float32),
+            PrimitiveType::F64 => DartType::Double(DartFFIFloatType::Float64),
         }
     }
 
@@ -456,7 +486,9 @@ impl DartType {
                                     ty: Self::from_type_expr(&p.type_expr, type_catalog),
                                 })
                                 .collect(),
-                            ret_ty: Self::from_return_def(&call_method.returns, type_catalog),
+                            ret_ty: DartReturnType {
+                                inner: Self::from_return_def(&call_method.returns, type_catalog),
+                            },
                         }))
                     }
                 }
@@ -471,7 +503,7 @@ impl DartType {
         match return_def {
             ReturnDef::Void => DartType::Void,
             ReturnDef::Value(ty) => DartType::from_type_expr(ty, type_catalog),
-            ReturnDef::Result { ok, err } => DartType::from_result(ok, err, type_catalog),
+            ReturnDef::Result { ok, .. } => DartType::from_type_expr(ok, type_catalog),
         }
     }
 
@@ -479,15 +511,36 @@ impl DartType {
         match self {
             DartType::Void => "void".to_string(),
             DartType::Bool => "bool".to_string(),
-            DartType::Int => "int".to_string(),
-            DartType::Double => "double".to_string(),
+            DartType::Int(..) => "int".to_string(),
+            DartType::Double(..) => "double".to_string(),
             DartType::String => "String".to_string(),
             DartType::Option(inner) => format!("{}?", inner.dart_type()),
             DartType::Result { ok, err } => {
                 format!("$$BoltResult<{}, {}>", ok.dart_type(), err.dart_type())
             }
             DartType::Bytes => "$$typed_data.Uint8List".to_string(),
-            DartType::List(inner) => format!("List<{}>", inner.dart_type()),
+            DartType::List(inner) => match inner.as_ref() {
+                DartType::Bool => "$$BoltBoolList".to_string(),
+                DartType::Int(int) => match int {
+                    DartFFIIntType::Uint8 => "$$typed_data.Uint8List".to_string(),
+                    DartFFIIntType::Int8 => "$$typed_data.Int8List".to_string(),
+                    DartFFIIntType::Uint16 => "$$typed_data.Uint16List".to_string(),
+                    DartFFIIntType::Int16 => "$$typed_data.Int16List".to_string(),
+                    DartFFIIntType::Uint32 => "$$typed_data.Uint32List".to_string(),
+                    DartFFIIntType::Int32 => "$$typed_data.Int32List".to_string(),
+                    DartFFIIntType::Uint64 | DartFFIIntType::UintPtr => {
+                        "$$typed_data.Uint64List".to_string()
+                    }
+                    DartFFIIntType::Int64 | DartFFIIntType::IntPtr => {
+                        "$$typed_data.Int64List".to_string()
+                    }
+                },
+                DartType::Double(float) => match float {
+                    DartFFIFloatType::Float32 => "$$typed_data.Float32List".to_string(),
+                    DartFFIFloatType::Float64 => "$$typed_data.Float64List".to_string(),
+                },
+                _ => format!("List<{}>", inner.dart_type()),
+            },
             DartType::Closure(sig) => format!(
                 "{} Function({})",
                 sig.ret_ty.dart_type(),
@@ -503,6 +556,15 @@ impl DartType {
             DartType::Callback(callback_id) => callback_id.to_string(),
             DartType::Custom(custom_type_id) => custom_type_id.to_string(),
             DartType::Builtin(builtin_id) => builtin_id.to_string(),
+        }
+    }
+
+    pub fn is_inner_void(&self) -> bool {
+        match self {
+            DartType::Option(ty) | DartType::List(ty) | DartType::Result { ok: ty, .. } => {
+                matches!(ty.as_ref(), DartType::Void)
+            }
+            _ => false,
         }
     }
 }

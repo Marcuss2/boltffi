@@ -7,12 +7,12 @@
 
 enum {{ dart_enum.name }}{% if dart_enum.is_error %} implements Exception{% endif %} {
 {%- for variant in dart_enum.variants %}
-  {{ variant.name }}({{ variant.tag }}){%- if !loop.last %},{%- else %};{%- endif %}
+  {{ variant.name }}._({{ variant.tag }}){%- if !loop.last %},{%- else %};{%- endif %}
 {%- endfor %}
 
   final {{ dart_enum.tag_dart_type() }} value;
 
-  const {{ dart_enum.name }}(this.value);
+  const {{ dart_enum.name }}._(this.value);
 
   factory {{ dart_enum.name }}._m$fromValue({{ dart_enum.tag_dart_type() }} value) {
     return switch (value) {

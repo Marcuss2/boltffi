@@ -44,9 +44,9 @@ final class _$$BoltCallbackHandle extends $$ffi.Struct {
   external int handle;
 
   external $$ffi.Pointer<$$ffi.Void> vtable;
-
-  static final kNull = $$ffi.Struct.create<_$$BoltCallbackHandle>();
 }
+
+final _k$BoltCallbackHandleNull = $$ffi.Struct.create<_$$BoltCallbackHandle>();
 
 final class $$BoltException implements Exception {
   final String message;
@@ -85,6 +85,13 @@ final class _$$BoltCalloc {
   ) {
     final o = _$$BoltCallocPtr($$extffi.calloc.allocate<T>(size), size);
     _finalizer.attach(o, o.ptr.cast(), detach: o);
+    return o;
+  }
+
+  static _$$BoltCallocPtr<T> allocUnmanaged<T extends $$ffi.SizedNativeType>(
+    int size,
+  ) {
+    final o = _$$BoltCallocPtr($$extffi.calloc.allocate<T>(size), size);
     return o;
   }
 }

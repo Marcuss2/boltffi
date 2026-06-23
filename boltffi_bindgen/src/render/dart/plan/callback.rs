@@ -28,6 +28,7 @@ pub struct DartCallbackMethod {
     pub ffi_sig: super::DartFFIFunctionSig,
     pub params: Vec<super::DartFFIClosureParam>,
     pub kind: ExecutionKind,
+    pub returns: super::DartFFIClosureReturns,
 }
 
 impl DartCallbackMethod {

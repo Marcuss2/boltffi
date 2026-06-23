@@ -5,7 +5,7 @@
 {%- include "extern_function.txt" %}
 {%- endfor %}
 sealed class {{ dart_enum.name }}{% if dart_enum.is_error %} implements Exception{% endif %} {
-  const {{ dart_enum.name }}();
+  const {{ dart_enum.name }}._();
 {% for variant in dart_enum.variants %}
   factory {{ dart_enum.name }}.{{ variant.name }}(
 {%- if variant.fields.len() > 0 -%}
@@ -83,11 +83,15 @@ final class {{ variant.class_name }} extends {{ dart_enum.name }} {
 {%- for field in variant.fields %}
     required this.{{ field.name }},
 {%- endfor %}
-  }{%- endif %});
+  }{%- endif %}): super._();
 
   @override
   String toString() {
-    return "{{ dart_enum.name }}.{{ variant.name }} { {% for field in variant.fields %}{{ field.name }}=${{ field.name }}{%if !loop.last %}, {% endif %}{% endfor %} }";
+    return "{{ dart_enum.name }}.{{ variant.name }}{% if !variant.fields.is_empty() %} {
+{%- for field in variant.fields -%}
+      {{ field.name }}=${{ field.name }}{%if !loop.last %}, {% endif %}
+{%- endfor -%}
+    }{% endif %}";
   }
 }
 {%- endfor %}

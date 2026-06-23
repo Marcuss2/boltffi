@@ -73,7 +73,95 @@ final class {{ cb.impl_class_name }} {
     }
 
     try {
+      {%- let cb_params = method.params %}
+      {% filter trim | indent(6, false) %}{% include "callable_do_closure_parse_args.txt" %}{% endfilter %}
+{%- if let super::DartType::Result { ok, err } = method.returns.ty.inner %}
+      late final $$BoltResult<{{ ok.dart_type() }}, {{ err.dart_type() }}> {{ method.returns.res_name() }};
+      try {
+        {{ method.returns.res_name() }} = $$BoltResult.ok({% if method.is_async() %}await {% endif %}l$impl.{{ method.name }}(
+          {%- for cb_param in cb_params -%}
+            l${{ cb_param.name }}{% if !loop.last %}, {% endif %} 
+          {%- endfor -%}
+        ));
+      } on {{ err.dart_type() }} catch (e) {
+        {{ method.returns.res_name() }} = $$BoltResult.err(e);
+      } catch (_) {
+        rethrow;
+      }
+{%- else %}
+      final {{ method.returns.res_name() }} = {% if method.is_async() %}await {% endif %}l$impl.{{ method.name }}(
+        {%- for cb_param in cb_params -%}
+          l${{ cb_param.name }}{% if !loop.last %}, {% endif %} 
+        {%- endfor -%}
+      );
+{%- endif %}
+{%- match method.returns.passing -%}
+{%- when super::DartFFIReturnsPassing::Void %}
+{%- if method.is_async() %}
+      _p$callback.asFunction<void Function(int, int)>()(_p$asyncCtx, 0);
+{%- else %}
+      _p$outStatus.ref.code = 0;
+{%- endif %}
+{%- when super::DartFFIReturnsPassing::Passing with (ret_passing) %}
+{%- match ret_passing %}
+{%- when super::DartFFIValuePassing::Value with (value)  %}
+{%- match value %}
+{%- when super::DartFFIParamValue::Primitive with (_) %}
+{%- if let super::DartType::Enum(..) = method.returns.ty.inner %}
+{%- if method.is_async() %}
+      _p$callback.asFunction<void Function(int, int, int)>()(_p$asyncCtx, {{ method.returns.res_name() }}.value, 0);
+{%- else %}
+      _p$outPtr.value = {{ method.returns.res_name() }}.value;
+      _p$outStatus.ref.code = 0;
+{%- endif %}
+{%- else %}
+{%- if method.is_async() %}
+      _p$callback.asFunction<void Function(int, int, int)>()(_p$asyncCtx, {{ method.returns.res_name() }}, 0);
+{%- else %}
+      _p$outPtr.value = {{ method.returns.res_name() }};
+      _p$outStatus.ref.code = 0;
+{%- endif %}
+{%- endif %}
+{%- when _ %}
+{%- endmatch %}
+{%- when super::DartFFIValuePassing::WireEncoded %}
+      final {{ method.returns.storage_name() }} = _$$BoltCalloc.allocUnmanaged<$$ffi.Uint8>({{ method.returns.wire_size_expr() }});
+      final {{ method.returns.writer_name() }} = _$$BoltWireEncoder(_$$BoltBufWriter.fromSpan({{ method.returns.storage_name() }}.ptr, {{ method.returns.storage_name() }}.len));
+      {{ method.returns.wire_encode_expr() | trim | indent(6, false) }};
+{%- if method.is_async() %}
+      _p$callback.asFunction<void Function(int, $$ffi.Pointer<$$ffi.Uint8>, int, int)>()(_p$asyncCtx, {{ method.returns.storage_name() }}.ptr, {{ method.returns.writer_name() }}.len, 0);
+{%- else %}
+      _p$outPtr.value = {{ method.returns.storage_name() }}.ptr;
+      _p$outLen.value = {{ method.returns.writer_name() }}.len;
+      _p$outStatus.ref.code = 0;
+{%- endif %}
+{%- when super::DartFFIValuePassing::ClassHandle with { class, .. } %}
+{%- when _ %}
+{%- endmatch %}
+{%- when _ %}
+{%- endmatch %}
     } catch (e) {
+{%- if !method.is_async() %}
+      _p$outStatus.ref.code = 1;
+{%- else %}
+{%- match method.returns.passing -%}
+{%- when super::DartFFIReturnsPassing::Void %}
+      _p$callback.asFunction<void Function(int, int)>()(_p$asyncCtx, 1);
+{%- when super::DartFFIReturnsPassing::Passing with (ret_passing) %}
+{%- match ret_passing %}
+{%- when super::DartFFIValuePassing::Value with (value)  %}
+{%- match value %}
+{%- when super::DartFFIParamValue::Primitive with (_) %}
+      _p$callback.asFunction<void Function(int, int, int)>()(_p$asyncCtx, 0, 1);
+{%- when _ %}
+{%- endmatch %}
+{%- when super::DartFFIValuePassing::WireEncoded %}
+      _p$callback.asFunction<void Function(int, $$ffi.Pointer<$$ffi.Uint8>, int, int)>()(_p$asyncCtx, $$ffi.nullptr, 0, 1);
+{%- when super::DartFFIValuePassing::ClassHandle with { class, .. } %}
+{%- when _ %}
+{%- endmatch %}
+{%- endmatch %}
+{%- endif %}
     }
   }
 {% endfor -%}

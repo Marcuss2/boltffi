@@ -25,50 +25,48 @@ pub struct DartEmitter {}
 
 impl DartEmitter {
     pub fn emit(library: &DartLibrary, artifact_name: &str) -> DartPackage {
-        let mut output = String::new();
-
-        output.push_str(PreludeTemplate {}.render().unwrap().as_str());
-
-        output.push_str(
-            CustomTypesTemplate {
-                custom_types: &library.custom_types,
-            }
-            .render()
-            .unwrap()
-            .as_str(),
-        );
-
-        for r in &library.records {
-            output.push_str(RecordTemplate { record: r }.render().unwrap().as_str());
-        }
-
-        for e in &library.enums {
-            let source = match &e.kind {
+        let output = std::iter::once(PreludeTemplate {}.render().unwrap())
+            .chain(std::iter::once(
+                CustomTypesTemplate {
+                    custom_types: &library.custom_types,
+                }
+                .render()
+                .unwrap(),
+            ))
+            .chain(
+                library
+                    .records
+                    .iter()
+                    .map(|r| RecordTemplate { record: r }.render().unwrap()),
+            )
+            .chain(library.enums.iter().map(|e| match &e.kind {
                 super::DartEnumKind::Enhanced => {
                     EnhancedEnumTemplate { dart_enum: e }.render().unwrap()
                 }
                 super::DartEnumKind::SealedClass => {
                     SealedClassEnumTemplate { dart_enum: e }.render().unwrap()
                 }
-            };
-            output.push_str(source.as_str());
-        }
-
-        for cb in &library.callbacks {
-            output.push_str(CallbackTemplate { cb }.render().unwrap().as_str());
-        }
-
-        for class in &library.classes {
-            output.push_str(ClassTemplate { class }.render().unwrap().as_str());
-        }
-
-        for func in &library.functions {
-            output.push_str(ExternFunctionTemplate { func }.render().unwrap().as_str());
-        }
-
-        for func in &library.functions {
-            output.push_str(CallableTemplate { func }.render().unwrap().as_str());
-        }
+            }))
+            .chain(
+                library
+                    .callbacks
+                    .iter()
+                    .map(|cb| CallbackTemplate { cb }.render().unwrap()),
+            )
+            .chain(
+                library
+                    .classes
+                    .iter()
+                    .map(|class| ClassTemplate { class }.render().unwrap()),
+            )
+            .chain(library.functions.iter().flat_map(|func| {
+                [
+                    ExternFunctionTemplate { func }.render().unwrap(),
+                    CallableTemplate { func }.render().unwrap(),
+                ]
+            }))
+            .reduce(|acc, s| acc + "\n" + s.as_str())
+            .unwrap_or_default();
 
         DartPackage {
             pubspec: PubspecTemplate {
@@ -128,14 +126,13 @@ pub fn render_value(expr: &ValueExpr) -> String {
     match expr {
         ValueExpr::Instance => String::new(),
         ValueExpr::Var(name) => name.clone(),
-        ValueExpr::Named(name) => NamingConvention::property_name(name),
+        ValueExpr::Named(name) => name.to_string(),
         ValueExpr::Field(parent, field) => {
             let parent_str = render_value(parent);
-            let field_str = NamingConvention::property_name(field.as_str());
             if parent_str.is_empty() {
-                field_str
+                field.to_string()
             } else {
-                format!("{}.{}", parent_str, field_str)
+                format!("{}.{}", parent_str, field.as_str())
             }
         }
     }
@@ -493,6 +490,7 @@ fn emit_reader_vec(
     element: &ReadSeq,
     layout: &VecLayout,
     reader_name: &str,
+    is_void: bool,
 ) -> String {
     match layout {
         VecLayout::Blittable { .. } => match element_type {
@@ -513,18 +511,18 @@ fn emit_reader_vec(
                 format!("{reader_name}.{}()", method)
             }
             _ => {
-                let inner_read_expr = emit_reader_read(element, reader_name);
+                let inner_read_expr = emit_reader_read(element, reader_name, is_void);
                 format!("{reader_name}.readList(({reader_name}) => {inner_read_expr})")
             }
         },
         VecLayout::Encoded => {
-            let inner_read_expr = emit_reader_read(element, reader_name);
+            let inner_read_expr = emit_reader_read(element, reader_name, is_void);
             format!("{reader_name}.readList(({reader_name}) => {inner_read_expr})")
         }
     }
 }
 
-pub fn emit_reader_read(seq: &ReadSeq, reader_name: &str) -> String {
+pub fn emit_reader_read(seq: &ReadSeq, reader_name: &str, is_inner_void: bool) -> String {
     let op = seq.ops.first().expect("read ops");
     match op {
         ReadOp::Primitive { primitive, .. } => {
@@ -559,7 +557,7 @@ pub fn emit_reader_read(seq: &ReadSeq, reader_name: &str) -> String {
             }
         },
         ReadOp::Option { some, .. } => {
-            let inner_read_expr = emit_reader_read(some, reader_name);
+            let inner_read_expr = emit_reader_read(some, reader_name, is_inner_void);
             format!("{reader_name}.readOptional(({reader_name}) => {inner_read_expr})")
         }
         ReadOp::Vec {
@@ -567,14 +565,18 @@ pub fn emit_reader_read(seq: &ReadSeq, reader_name: &str) -> String {
             element,
             layout,
             ..
-        } => emit_reader_vec(element_type, element, layout, reader_name),
+        } => emit_reader_vec(element_type, element, layout, reader_name, is_inner_void),
         ReadOp::Result { ok, err, .. } => {
-            let ok_expr = emit_reader_read(ok, reader_name);
+            let ok_expr = if is_inner_void {
+                "null".to_string()
+            } else {
+                emit_reader_read(ok, reader_name, is_inner_void)
+            };
             let err_op = err.ops.first().expect("read ops");
 
             let err_expr = match err_op {
-                ReadOp::String { .. } => format!("$$BoltFFIException._m$wireDecode({reader_name})"),
-                _ => emit_reader_read(err, reader_name),
+                ReadOp::String { .. } => format!("$$BoltException._m$wireDecode({reader_name})"),
+                _ => emit_reader_read(err, reader_name, is_inner_void),
             };
             format!(
                 r#"
@@ -592,11 +594,13 @@ pub fn emit_reader_read(seq: &ReadSeq, reader_name: &str) -> String {
             "Url" => "reader.readUri()".to_string(),
             _ => "reader.readString()".to_string(),
         },
-        ReadOp::Custom { underlying, .. } => emit_reader_read(underlying, reader_name),
+        ReadOp::Custom { underlying, .. } => {
+            emit_reader_read(underlying, reader_name, is_inner_void)
+        }
     }
 }
 
-fn remap_size_expr_value_expr(expr: &SizeExpr, v: ValueExpr) -> SizeExpr {
+pub(crate) fn remap_size_expr_value_expr(expr: &SizeExpr, v: ValueExpr) -> SizeExpr {
     match expr {
         SizeExpr::Fixed(value) => SizeExpr::Fixed(*value),
         SizeExpr::Runtime => SizeExpr::Runtime,

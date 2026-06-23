@@ -21,6 +21,10 @@ pub struct DartStream {
 
 impl DartStream {
     pub fn item_wire_decode_expr(&self, reader_name: &str) -> String {
-        emit::emit_reader_read(&self.item_read_seq, reader_name)
+        emit::emit_reader_read(
+            &self.item_read_seq,
+            reader_name,
+            self.item_ty.is_inner_void(),
+        )
     }
 }

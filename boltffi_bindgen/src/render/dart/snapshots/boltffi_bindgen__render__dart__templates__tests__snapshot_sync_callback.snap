@@ -87,7 +87,12 @@ final class _I$ICallback {
     }
 
     try {
+      final l$n = n;
+      final _l$res = l$impl.mapU32(l$n);
+      _p$outPtr.value = _l$res;
+      _p$outStatus.ref.code = 0;
     } catch (e) {
+      _p$outStatus.ref.code = 1;
     }
   }
 
@@ -99,7 +104,17 @@ final class _I$ICallback {
     }
 
     try {
+      final l$sWire = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(sPtr, sLen));
+      final l$s = l$sWire.readString();
+      final _l$res = l$impl.mapStringRef(l$s);
+      final _l$resStorage = _$$BoltCalloc.allocUnmanaged<$$ffi.Uint8>((4 + (_l$res.length * 3)));
+      final _l$resWriter = _$$BoltWireEncoder(_$$BoltBufWriter.fromSpan(_l$resStorage.ptr, _l$resStorage.len));
+      _l$resWriter.writeString(_l$res);
+      _p$outPtr.value = _l$resStorage.ptr;
+      _p$outLen.value = _l$resWriter.len;
+      _p$outStatus.ref.code = 0;
     } catch (e) {
+      _p$outStatus.ref.code = 1;
     }
   }
 
@@ -111,7 +126,17 @@ final class _I$ICallback {
     }
 
     try {
+      final l$sWire = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(sPtr, sLen));
+      final l$s = l$sWire.readString();
+      final _l$res = l$impl.mapString(l$s);
+      final _l$resStorage = _$$BoltCalloc.allocUnmanaged<$$ffi.Uint8>((4 + (_l$res.length * 3)));
+      final _l$resWriter = _$$BoltWireEncoder(_$$BoltBufWriter.fromSpan(_l$resStorage.ptr, _l$resStorage.len));
+      _l$resWriter.writeString(_l$res);
+      _p$outPtr.value = _l$resStorage.ptr;
+      _p$outLen.value = _l$resWriter.len;
+      _p$outStatus.ref.code = 0;
     } catch (e) {
+      _p$outStatus.ref.code = 1;
     }
   }
 
@@ -123,7 +148,12 @@ final class _I$ICallback {
     }
 
     try {
+      final l$bytesWire = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(bytesPtr, bytesLen));
+      final l$bytes = l$bytesWire.readUint8List();
+      final _l$res = l$impl.processBytes(l$bytes);
+      _p$outStatus.ref.code = 0;
     } catch (e) {
+      _p$outStatus.ref.code = 1;
     }
   }
 }

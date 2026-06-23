@@ -1,5 +1,5 @@
 use crate::{
-    ir::{PrimitiveType, ReadSeq, WriteSeq},
+    ir::{PrimitiveType, ReadSeq, ValueExpr, WriteSeq},
     render::dart::emit,
 };
 
@@ -7,14 +7,14 @@ use crate::{
 pub struct DartRecordField {
     pub name: String,
     pub offset: usize,
-    pub dart_type: String,
+    pub ty: super::DartType,
     pub read_seq: ReadSeq,
     pub write_seq: WriteSeq,
 }
 
 impl DartRecordField {
     pub fn wire_decode_expr(&self, reader_name: &str) -> String {
-        emit::emit_reader_read(&self.read_seq, reader_name)
+        emit::emit_reader_read(&self.read_seq, reader_name, self.ty.is_inner_void())
     }
 
     pub fn wire_encode_expr(&self, writer_name: &str) -> String {
@@ -22,7 +22,10 @@ impl DartRecordField {
     }
 
     pub fn wire_encoded_size_expr(&self) -> String {
-        emit::emit_size_expr(&self.write_seq.size)
+        emit::emit_size_expr(&emit::remap_size_expr_value_expr(
+            &self.write_seq.size,
+            ValueExpr::Named(self.name.to_string()),
+        ))
     }
 }
 

@@ -13,13 +13,15 @@ _$$BoltFFIAsync.create(
 {%- endfor -%}
   ),
   pollFuture: _f${{ async_def.poll_symbol }},
-  completeFuture: (handle) {
-    final l$status = $$ffi.Struct.create<_$$BoltFFIStatus>();
-    final l$res = _f${{ async_def.complete_symbol }}(handle, l$status.address);
-    if (l$status.code != 0) {
-      throw $$BoltException("Error completing future: $handle with status code: ${l$status.code}");
+  completeFuture: (_p$handle) {
+    final _l$status = $$ffi.Struct.create<_$$BoltFFIStatus>();
+    final _l$res = _f${{ async_def.complete_symbol }}(_p$handle, _l$status.address);
+    if (_l$status.code != 0) {
+      throw $$BoltException("Error completing future: $handle with status code: ${_l$status.code}");
     }
-    return l$res;
+{%- let return_expr = "_l$res" %}
+{%- let returns = func.returns %}
+{%- filter trim | indent(4) -%}{% include "callable_do_return.txt" %}{% endfilter %}
   },
   freeFuture: _f${{ async_def.free_symbol }},
   cancelFuture: _f${{ async_def.cancel_symbol }},

@@ -17,7 +17,7 @@ final class {{ layout.struct_name }} extends $$ffi.Struct {
 
 final class {{ record.name }}{% if !record.interfaces.is_empty() %} implements {% for interface in record.interfaces %}{{ interface.name() }}{% if !loop.last %}, {% endif %}{%- endfor %}{% endif %} {
 {%- for field in record.fields %}
-  {{ field.dart_type }} {{ field.name }};
+  {{ field.ty.dart_type() }} {{ field.name }};
 {%- endfor %}
 
   {{ record.name }}({
@@ -79,9 +79,9 @@ final class {{ record.name }}{% if !record.interfaces.is_empty() %} implements {
     }
   }
 
-  static List<{{ record.name }}> _m$blittableReadList(int _p$length, _$$BoltBufReader _p$reader) {
-    final l$offset = _p$reader.advance(_p$length * _k$structSize);
-    return List.generate(_p$length, (l$i) {
+  static List<{{ record.name }}> _m$blittableReadList(int _p$lengthInBytes, _$$BoltBufReader _p$reader) {
+    final l$offset = _p$reader.advance(_p$lengthInBytes);
+    return List.generate(_p$lengthInBytes ~/ _k$structSize, (l$i) {
       final l$itemOffset = l$offset * l$i;
       return {{ record.name }}(
 {%- for field in layout.fields %}

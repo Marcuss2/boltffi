@@ -5,7 +5,7 @@ use crate::{
     },
     render::dart::{
         DartBlittableField, DartBlittableLayout, DartFFIType, DartRecord, DartRecordField,
-        DartRecordInterface, NamingConvention, emit,
+        DartRecordInterface, DartType, NamingConvention, emit,
     },
 };
 
@@ -54,7 +54,7 @@ impl<'a> super::DartLowerer<'a> {
         DartRecordField {
             name: NamingConvention::property_name(field.name.as_str()),
             offset: 0,
-            dart_type: emit::type_expr_dart_type(&field.type_expr),
+            ty: DartType::from_type_expr(&field.type_expr, &self.ffi.catalog),
             read_seq: record_field_read_seq,
             write_seq: record_field_write_seq,
         }

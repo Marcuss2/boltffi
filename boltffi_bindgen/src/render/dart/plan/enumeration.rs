@@ -1,5 +1,5 @@
 use crate::{
-    ir::{PrimitiveType, ReadSeq, SizeExpr, WriteSeq},
+    ir::{PrimitiveType, ReadSeq, SizeExpr, ValueExpr, WriteSeq},
     render::dart::emit,
 };
 
@@ -19,7 +19,7 @@ pub struct DartEnumField {
 
 impl DartEnumField {
     pub fn wire_decode_expr(&self, reader_name: &str) -> String {
-        emit::emit_reader_read(&self.read_seq, reader_name)
+        emit::emit_reader_read(&self.read_seq, reader_name, self.dart_type.is_inner_void())
     }
 
     pub fn wire_encode_expr(&self, writer_name: &str) -> String {
@@ -27,7 +27,10 @@ impl DartEnumField {
     }
 
     pub fn wire_encoded_size_expr(&self) -> String {
-        emit::emit_size_expr(&self.write_seq.size)
+        emit::emit_size_expr(&emit::remap_size_expr_value_expr(
+            &self.write_seq.size,
+            ValueExpr::Named(self.name.to_string()),
+        ))
     }
 }
 

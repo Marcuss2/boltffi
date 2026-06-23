@@ -16,7 +16,7 @@ final class PrimitiveLists {
   $$typed_data.Int64List i64s;
   $$typed_data.Float32List f32s;
   $$typed_data.Float64List f64s;
-  $$BoltFFIBoolList bools;
+  $$BoltBoolList bools;
 
   PrimitiveLists({
     required this.u8s,

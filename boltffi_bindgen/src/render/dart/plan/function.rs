@@ -1,5 +1,5 @@
 use crate::{
-    ir::{ClassId, EnumId, PrimitiveType, ReadSeq, RecordId, WriteSeq},
+    ir::{ClassId, EnumId, PrimitiveType, ReadSeq, RecordId, ValueExpr, WriteSeq},
     render::dart::emit,
 };
 
@@ -7,7 +7,6 @@ use crate::{
 pub enum DartFFIParamValue {
     Primitive(super::DartFFIPrimitiveType),
     Record(String),
-    Enum,
 }
 
 impl DartFFIParamValue {
@@ -28,13 +27,19 @@ impl DartFFIParamBytes {}
 #[derive(Debug, Clone)]
 pub struct DartFFIClosureParam {
     pub name: String,
-    pub recv: DartFFIParamPassing,
+    pub recv: DartFFIValuePassing,
     pub read_seq: Option<ReadSeq>,
     pub ty: super::DartType,
 }
 
 impl DartFFIClosureParam {
-    pub fn buf_reader_name(&self) -> String {
+    pub fn wire_name(&self) -> String {
+        assert!(self.read_seq.is_some(), "ffi buffer parts");
+
+        format!("l${}Wire", self.name)
+    }
+
+    pub fn reader_name(&self) -> String {
         assert!(self.read_seq.is_some(), "ffi buffer parts");
 
         format!("l${}Buf", self.name)
@@ -55,44 +60,13 @@ impl DartFFIClosureParam {
     pub fn wire_read_expr(&self) -> String {
         emit::emit_reader_read(
             self.read_seq.as_ref().expect("ffi buffer parts"),
-            &self.buf_reader_name(),
+            &self.wire_name(),
+            self.ty.is_inner_void(),
         )
     }
 
-    pub fn value_read_expr(&self) -> String {
-        let DartFFIParamPassing::Value(value) = &self.recv else {
-            panic!("value passsing")
-        };
-
-        match value {
-            DartFFIParamValue::Primitive(..) => match &self.ty {
-                super::DartType::Bool | super::DartType::Int | super::DartType::Double => {
-                    self.name.clone()
-                }
-                super::DartType::Record(class) => {
-                    format!("{}._m$fromStruct({})", class, self.name)
-                }
-                super::DartType::Enum(class) => {
-                    format!("{}._m$fromValue({})", class, self.name)
-                }
-                super::DartType::Custom(_) => todo!(),
-                _ => unreachable!(),
-            },
-            DartFFIParamValue::Record(class) => {
-                format!("{}._m$fromStruct({})", class, self.name)
-            }
-            DartFFIParamValue::Enum => {
-                let enum_class = match &self.ty {
-                    super::DartType::Enum(class) => class,
-                    _ => unreachable!(),
-                };
-                format!("{}._m$fromValue({})", enum_class, self.name)
-            }
-        }
-    }
-
     pub fn bytes_read_expr(&self) -> String {
-        let DartFFIParamPassing::Bytes(bytes) = &self.recv else {
+        let DartFFIValuePassing::Bytes(bytes) = &self.recv else {
             panic!("bytes passsing")
         };
 
@@ -183,7 +157,6 @@ impl DartFFIClosureParam {
                     self.ffi_param_ptr_name(),
                     self.ffi_param_len_name(),
                 ),
-                DartFFIParamValue::Enum => String::new(),
             },
             DartFFIParamBytes::Record(record) => format!(
                 "{}._m$fromStructPtr({}, {})",
@@ -201,140 +174,67 @@ impl DartFFIClosureParam {
 }
 
 #[derive(Debug, Clone)]
-pub struct DartFFIClosureDef {
-    pub sig: super::DartFFIFunctionSig,
-    pub params: Vec<DartFFIClosureParam>,
-}
-
-impl DartFFIClosureDef {
-    // pub fn get_dart_params(&self) -> impl Iterator<Item = String> {
-    //     self.params.iter().map(|p| match &p.recv {
-    //         DartFFIParamPassing::Value(value) => ,
-    //         DartFFIParamPassing::WireEncoded => todo!(),
-    //         DartFFIParamPassing::Bytes(bytes) => todo!(),
-    //         DartFFIParamPassing::Closure(..) => todo!(),
-    //         DartFFIParamPassing::ClassHandle => todo!(),
-    //         DartFFIParamPassing::CallbackHandle(_) => todo!(),
-    //     })
-    // }
-}
-
-#[derive(Debug, Clone)]
-pub enum DartFFIParamPassing {
-    /// ints, floats, bools, records, enums, ...
-    Value(DartFFIParamValue),
-    /// enums, records, strings, lists
-    WireEncoded,
-    /// arrays of (ints, floats, bools, records, ...), strings, records
-    Bytes(DartFFIParamBytes),
-    /// closures
-    Closure(DartFFIClosureDef),
-    /// class handle
-    ClassHandle,
-    /// callback handle
-    CallbackHandle { class: String, nullable: bool },
-}
-
-impl DartFFIParamPassing {
-    pub fn primitive_value(primitive: PrimitiveType) -> Self {
-        DartFFIParamPassing::Value(DartFFIParamValue::from_primitive(primitive))
-    }
-
-    pub fn record_value(record: String) -> Self {
-        DartFFIParamPassing::Value(DartFFIParamValue::Record(record))
-    }
-
-    pub fn primitive_bytes(primitive: PrimitiveType) -> Self {
-        DartFFIParamPassing::Bytes(DartFFIParamBytes::Array(DartFFIParamValue::from_primitive(
-            primitive,
-        )))
-    }
-
-    pub fn record_bytes(record: String) -> Self {
-        DartFFIParamPassing::Bytes(DartFFIParamBytes::Array(DartFFIParamValue::Record(record)))
-    }
-
-    pub fn utf8_bytes() -> Self {
-        DartFFIParamPassing::Bytes(DartFFIParamBytes::UTF8)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum DartFFIReturnsRecv {
-    /// ints, floats, bools, records, closures, ...
-    Value,
-}
-
-#[derive(Debug, Clone)]
-pub struct DartFFIFunctionReturns {
-    pub ty: super::DartType,
-    pub passing: DartFFIReturnsRecv,
-}
-
-#[derive(Debug, Clone)]
-pub struct DartFunctionParam {
-    pub name: String,
-    pub passing: DartFFIParamPassing,
+pub struct DartFFIClosureReturns {
+    pub ty: super::DartReturnType,
+    pub passing: DartFFIReturnsPassing,
     pub write_seq: Option<WriteSeq>,
-    pub ty: super::DartType,
 }
 
-impl DartFunctionParam {
+impl DartFFIClosureReturns {
+    pub fn res_name(&self) -> &'static str {
+        "_l$res"
+    }
+
     pub fn storage_name(&self) -> String {
-        format!("l${}Storage", self.name)
+        format!("{}Storage", self.res_name())
+    }
+
+    pub fn buf_name(&self) -> String {
+        format!("{}Buf", self.res_name())
     }
 
     pub fn bytes_name(&self) -> String {
-        format!("l${}Bytes", self.name)
+        format!("{}Bytes", self.res_name())
     }
 
-    pub fn buf_writer_name(&self) -> String {
-        format!("l${}Buf", self.name)
-    }
-
-    pub fn ffi_param_ptr_name(&self) -> String {
-        format!("{}Ptr", self.name)
-    }
-
-    pub fn ffi_param_len_name(&self) -> String {
-        format!("{}Len", self.name)
-    }
-
-    pub fn callable_name(&self) -> String {
-        format!("l${}Callable", self.name)
-    }
-
-    pub fn wire_write_expr(&self) -> String {
-        emit::emit_writer_write(
-            self.write_seq.as_ref().expect("wire encoded"),
-            &self.buf_writer_name(),
-            &self.name,
-        )
+    pub fn writer_name(&self) -> String {
+        format!("{}Writer", self.res_name())
     }
 
     pub fn wire_size_expr(&self) -> String {
         let w = self.write_seq.as_ref().expect("wire encoded");
-        emit::emit_size_expr(&w.size)
+        emit::emit_size_expr(&emit::remap_size_expr_value_expr(
+            &w.size,
+            ValueExpr::Named(self.res_name().to_string()),
+        ))
+    }
+
+    pub fn wire_encode_expr(&self) -> String {
+        emit::emit_writer_write(
+            self.write_seq.as_ref().expect("wire"),
+            &self.writer_name(),
+            self.res_name(), // matches!(self.ty, super::DartType::Void),
+        )
     }
 
     pub fn bytes_write_expr(&self) -> String {
-        let DartFFIParamPassing::Bytes(bytes) = &self.passing else {
-            panic!("bytes passsing")
+        let DartFFIReturnsPassing::Passing(DartFFIValuePassing::Bytes(bytes)) = &self.passing
+        else {
+            panic!("bytes passing")
         };
 
         let write = match bytes {
             DartFFIParamBytes::Array(value) => match value {
                 DartFFIParamValue::Primitive(..) => {
-                    format!("{}.writeBytes", self.buf_writer_name())
+                    format!("{}.writeBytes", self.writer_name())
                 }
                 DartFFIParamValue::Record(record) => {
                     format!("{}._m$blittableWriteList", record)
                 }
-                DartFFIParamValue::Enum => String::new(),
             },
             DartFFIParamBytes::Record(record) => format!("{}._m$blittableWrite", record),
             DartFFIParamBytes::UTF8 => {
-                format!("{}.writeBytes", self.buf_writer_name())
+                format!("{}.writeBytes", self.writer_name())
             }
         };
 
@@ -342,17 +242,18 @@ impl DartFunctionParam {
             DartFFIParamBytes::Array(value) => match value {
                 DartFFIParamValue::Primitive(primitive) => match primitive {
                     super::DartFFIPrimitiveType::Bool => {
-                        vec![format!("{}._bytes", self.name), String::from("0")]
+                        vec![format!("{}._bytes", self.res_name()), String::from("0")]
                     }
                     super::DartFFIPrimitiveType::Int(..)
                     | super::DartFFIPrimitiveType::Float(..) => {
-                        vec![self.bytes_name(), String::from("0")]
+                        vec![self.res_name().to_string(), String::from("0")]
                     }
                 },
-                DartFFIParamValue::Record(..) => vec![self.name.clone(), self.buf_writer_name()],
-                DartFFIParamValue::Enum => vec![format!("{}.value", self.name), String::from("0")],
+                DartFFIParamValue::Record(..) => {
+                    vec![self.res_name().to_string(), self.writer_name()]
+                }
             },
-            DartFFIParamBytes::Record(..) => vec![self.name.clone(), self.buf_writer_name()],
+            DartFFIParamBytes::Record(..) => vec![self.res_name().to_string(), self.writer_name()],
             DartFFIParamBytes::UTF8 => vec![self.bytes_name(), String::from("0")],
         };
 
@@ -365,8 +266,21 @@ impl DartFunctionParam {
         )
     }
 
+    pub fn value_write_expr(&self) -> String {
+        let DartFFIReturnsPassing::Passing(DartFFIValuePassing::Value(value)) = &self.passing
+        else {
+            panic!("bytes passsing")
+        };
+
+        match value {
+            DartFFIParamValue::Primitive(..) => panic!("unexpected primitive value write"),
+            DartFFIParamValue::Record(..) => format!("{}._m$toStruct()", self.res_name()),
+        }
+    }
+
     pub fn bytes_create_expr(&self) -> Option<String> {
-        let DartFFIParamPassing::Bytes(bytes) = &self.passing else {
+        let DartFFIReturnsPassing::Passing(DartFFIValuePassing::Bytes(bytes)) = &self.passing
+        else {
             panic!("bytes passsing")
         };
 
@@ -408,7 +322,248 @@ impl DartFunctionParam {
                     },
                 },
                 DartFFIParamValue::Record(..) => return None,
-                DartFFIParamValue::Enum => String::new(),
+            },
+            DartFFIParamBytes::Record(..) => return None,
+            DartFFIParamBytes::UTF8 => "$$convert.utf8.encode".to_string(),
+        };
+
+        let var = match bytes {
+            DartFFIParamBytes::Array(value) => match value {
+                DartFFIParamValue::Primitive(primitive) => match primitive {
+                    super::DartFFIPrimitiveType::Bool
+                    | super::DartFFIPrimitiveType::Int(..)
+                    | super::DartFFIPrimitiveType::Float(..) => self.res_name().to_string(),
+                },
+                DartFFIParamValue::Record(record) => {
+                    format!("{}, {}._k$structSize", self.res_name(), record)
+                }
+            },
+            DartFFIParamBytes::Record(record) => {
+                format!("{}, {}._k$structSize", self.res_name(), record)
+            }
+            DartFFIParamBytes::UTF8 => self.res_name().to_string(),
+        };
+
+        Some(format!("{}({})", create, var))
+    }
+
+    pub fn bytes_len_expr(&self) -> String {
+        let DartFFIReturnsPassing::Passing(DartFFIValuePassing::Bytes(bytes)) = &self.passing
+        else {
+            panic!("bytes passsing")
+        };
+
+        match bytes {
+            DartFFIParamBytes::Array(value) => match value {
+                DartFFIParamValue::Primitive(..) => {
+                    format!("{}.lengthInBytes", self.res_name())
+                }
+                DartFFIParamValue::Record(record) => {
+                    format!("{}.length * {}._k$structSize", self.res_name(), record)
+                }
+            },
+            DartFFIParamBytes::Record(record) => {
+                format!("{}.length * {}._k$structSize", self.res_name(), record)
+            }
+            DartFFIParamBytes::UTF8 => format!("{}.lengthInBytes", self.bytes_name()),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct DartFFIClosureDef {
+    pub sig: super::DartFFIFunctionSig,
+    pub params: Vec<DartFFIClosureParam>,
+    pub returns: DartFFIClosureReturns,
+}
+
+impl DartFFIClosureDef {
+    pub fn exceptional_return(&self) -> Option<&'static str> {
+        match self.returns.ty.inner {
+            super::DartType::Bool => Some("false"),
+            super::DartType::Int(..) => Some("0"),
+            super::DartType::Double(..) => Some("0.0"),
+            super::DartType::Enum(_) => {
+                if let DartFFIReturnsPassing::Passing(DartFFIValuePassing::Value(
+                    DartFFIParamValue::Primitive(..),
+                )) = &self.returns.passing
+                {
+                    Some("0")
+                } else {
+                    None
+                }
+            }
+            super::DartType::Void
+            | super::DartType::String
+            | super::DartType::Option(..)
+            | super::DartType::List(..)
+            | super::DartType::Bytes
+            | super::DartType::Closure(..)
+            | super::DartType::Result { .. }
+            | super::DartType::Record(_)
+            | super::DartType::Class(_)
+            | super::DartType::Callback(_)
+            | super::DartType::Builtin(_)
+            | super::DartType::Custom(_) => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum DartFFIValuePassing {
+    /// ints, floats, bools, records, enums, ...
+    Value(DartFFIParamValue),
+    /// enums, records, strings, lists
+    WireEncoded,
+    /// arrays of (ints, floats, bools, records, ...), strings, records
+    Bytes(DartFFIParamBytes),
+    /// closures
+    Closure(Box<DartFFIClosureDef>),
+    /// class handle
+    ClassHandle { class: String, nullable: bool },
+    /// callback handle
+    CallbackHandle { class: String, nullable: bool },
+}
+
+impl DartFFIValuePassing {
+    pub fn primitive_value(primitive: PrimitiveType) -> Self {
+        DartFFIValuePassing::Value(DartFFIParamValue::from_primitive(primitive))
+    }
+
+    pub fn record_value(record: String) -> Self {
+        DartFFIValuePassing::Value(DartFFIParamValue::Record(record))
+    }
+
+    pub fn primitive_bytes(primitive: PrimitiveType) -> Self {
+        DartFFIValuePassing::Bytes(DartFFIParamBytes::Array(DartFFIParamValue::from_primitive(
+            primitive,
+        )))
+    }
+
+    pub fn record_bytes(record: String) -> Self {
+        DartFFIValuePassing::Bytes(DartFFIParamBytes::Array(DartFFIParamValue::Record(record)))
+    }
+
+    pub fn utf8_bytes() -> Self {
+        DartFFIValuePassing::Bytes(DartFFIParamBytes::UTF8)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum DartFFIReturnsRecv {
+    /// ints, floats, bools, records, closures, ...
+    Value,
+}
+
+#[derive(Debug, Clone)]
+pub struct DartFFIFunctionReturns {
+    pub ty: super::DartType,
+    pub passing: DartFFIReturnsRecv,
+}
+
+#[derive(Debug, Clone)]
+pub struct DartFunctionParam {
+    pub name: String,
+    pub passing: DartFFIValuePassing,
+    pub write_seq: Option<WriteSeq>,
+    pub ty: super::DartType,
+}
+
+impl DartFunctionParam {
+    pub fn storage_name(&self) -> String {
+        format!("l${}Storage", self.name)
+    }
+
+    pub fn bytes_name(&self) -> String {
+        format!("l${}Bytes", self.name)
+    }
+
+    pub fn buf_writer_name(&self) -> String {
+        format!("l${}Buf", self.name)
+    }
+
+    pub fn ffi_param_ptr_name(&self) -> String {
+        format!("{}Ptr", self.name)
+    }
+
+    pub fn ffi_param_len_name(&self) -> String {
+        format!("{}Len", self.name)
+    }
+
+    pub fn callable_name(&self) -> String {
+        format!("l${}Callable", self.name)
+    }
+
+    pub fn wire_write_expr(&self) -> String {
+        emit::emit_writer_write(
+            self.write_seq.as_ref().expect("wire encoded"),
+            &self.buf_writer_name(),
+            &self.name,
+        )
+    }
+
+    pub fn wire_size_expr(&self) -> String {
+        let w = self.write_seq.as_ref().expect("wire encoded");
+        emit::emit_size_expr(&emit::remap_size_expr_value_expr(
+            &w.size,
+            ValueExpr::Named(self.name.clone()),
+        ))
+    }
+
+    pub fn bytes_write_expr(&self) -> String {
+        let DartFFIValuePassing::Bytes(bytes) = &self.passing else {
+            panic!("bytes passsing")
+        };
+
+        let write = match bytes {
+            DartFFIParamBytes::Array(value) => match value {
+                DartFFIParamValue::Primitive(..) => {
+                    format!("{}.writeBytes", self.buf_writer_name())
+                }
+                DartFFIParamValue::Record(record) => {
+                    format!("{}._m$blittableWriteList", record)
+                }
+            },
+            DartFFIParamBytes::Record(record) => format!("{}._m$blittableWrite", record),
+            DartFFIParamBytes::UTF8 => {
+                format!("{}.writeBytes", self.buf_writer_name())
+            }
+        };
+
+        let args = match bytes {
+            DartFFIParamBytes::Array(value) => match value {
+                DartFFIParamValue::Primitive(primitive) => match primitive {
+                    super::DartFFIPrimitiveType::Bool => {
+                        vec![format!("{}._bytes", self.name), String::from("0")]
+                    }
+                    super::DartFFIPrimitiveType::Int(..)
+                    | super::DartFFIPrimitiveType::Float(..) => {
+                        vec![self.name.clone(), String::from("0")]
+                    }
+                },
+                DartFFIParamValue::Record(..) => vec![self.name.clone(), self.buf_writer_name()],
+            },
+            DartFFIParamBytes::Record(..) => vec![self.name.clone(), self.buf_writer_name()],
+            DartFFIParamBytes::UTF8 => vec![self.bytes_name(), String::from("0")],
+        };
+
+        format!(
+            "{}({})",
+            write,
+            args.into_iter()
+                .reduce(|acc, s| acc + ", " + s.as_str())
+                .unwrap()
+        )
+    }
+
+    pub fn bytes_create_expr(&self) -> Option<String> {
+        let DartFFIValuePassing::Bytes(bytes) = &self.passing else {
+            panic!("bytes passsing")
+        };
+
+        let create = match bytes {
+            DartFFIParamBytes::Array(value) => match value {
+                DartFFIParamValue::Primitive(..) | DartFFIParamValue::Record(..) => return None,
             },
             DartFFIParamBytes::Record(..) => return None,
             DartFFIParamBytes::UTF8 => "$$convert.utf8.encode".to_string(),
@@ -424,7 +579,6 @@ impl DartFunctionParam {
                 DartFFIParamValue::Record(record) => {
                     format!("{}, {}._k$structSize", self.name, record)
                 }
-                DartFFIParamValue::Enum => format!("{}.value", self.name),
             },
             DartFFIParamBytes::Record(record) => format!("{}, {}._k$structSize", self.name, record),
             DartFFIParamBytes::UTF8 => self.name.clone(),
@@ -434,19 +588,18 @@ impl DartFunctionParam {
     }
 
     pub fn bytes_len_expr(&self) -> String {
-        let DartFFIParamPassing::Bytes(bytes) = &self.passing else {
+        let DartFFIValuePassing::Bytes(bytes) = &self.passing else {
             panic!("bytes passsing")
         };
 
         match bytes {
             DartFFIParamBytes::Array(value) => match value {
                 DartFFIParamValue::Primitive(..) => {
-                    format!("{}.lengthInBytes", self.bytes_name())
+                    format!("{}.lengthInBytes", self.name)
                 }
                 DartFFIParamValue::Record(record) => {
                     format!("{}.length * {}._k$structSize", self.name, record)
                 }
-                DartFFIParamValue::Enum => String::new(),
             },
             DartFFIParamBytes::Record(record) => {
                 format!("{}.length * {}._k$structSize", self.name, record)
@@ -463,12 +616,124 @@ pub struct DartFFIAsyncFunctionDef {
     pub complete_ty: super::DartFFIType,
     pub cancel_symbol: String,
     pub free_symbol: String,
+    pub returns: DartFunctionReturns,
 }
 
 #[derive(Debug, Clone)]
 pub enum DartFunctionMode {
     Sync,
-    Async(DartFFIAsyncFunctionDef),
+    Async(Box<DartFFIAsyncFunctionDef>),
+}
+
+#[derive(Debug, Clone)]
+pub enum DartFFIReturnsPassing {
+    Void,
+    Passing(DartFFIValuePassing),
+}
+
+#[derive(Debug, Clone)]
+pub struct DartFunctionReturns {
+    pub ty: super::DartReturnType,
+    pub passing: DartFFIReturnsPassing,
+    pub read_seq: Option<ReadSeq>,
+    pub is_fallible: bool,
+}
+
+impl DartFunctionReturns {
+    pub fn buf_name(&self) -> &'static str {
+        "_l$resBuf"
+    }
+
+    pub fn reader_name(&self) -> &'static str {
+        "_l$resReader"
+    }
+
+    pub fn wire_decode_expr(&self) -> String {
+        emit::emit_reader_read(
+            self.read_seq.as_ref().expect("wire"),
+            self.reader_name(),
+            self.ty.inner.is_inner_void(),
+        )
+    }
+
+    pub fn bytes_read_expr(&self) -> String {
+        let DartFFIReturnsPassing::Passing(DartFFIValuePassing::Bytes(bytes)) = &self.passing
+        else {
+            panic!("bytes passsing")
+        };
+
+        match bytes {
+            DartFFIParamBytes::Array(value) => match value {
+                DartFFIParamValue::Primitive(primitive) => match primitive {
+                    crate::render::dart::DartFFIPrimitiveType::Bool => format!(
+                        "$$BoltBoolList._m$fromUint8List({reader}.readUint8List({reader}.len, 0))",
+                        reader = self.reader_name()
+                    ),
+                    crate::render::dart::DartFFIPrimitiveType::Int(int) => {
+                        let verb = match int {
+                            super::DartFFIIntType::Uint8 => "Uint8",
+                            super::DartFFIIntType::Int8 => "Int8",
+                            super::DartFFIIntType::Uint16 => "Uint16",
+                            super::DartFFIIntType::Int16 => "Int16",
+                            super::DartFFIIntType::Uint32 => "Uint32",
+                            super::DartFFIIntType::Int32 => "Int32",
+                            super::DartFFIIntType::Uint64 | super::DartFFIIntType::UintPtr => {
+                                "Uint64"
+                            }
+                            super::DartFFIIntType::Int64 | super::DartFFIIntType::IntPtr => "Int64",
+                        };
+
+                        format!(
+                            "{reader}.read{verb}List({reader}.len, 0)",
+                            reader = self.reader_name(),
+                        )
+                    }
+                    crate::render::dart::DartFFIPrimitiveType::Float(float) => {
+                        let verb = match float {
+                            super::DartFFIFloatType::Float32 => "Float32",
+                            super::DartFFIFloatType::Float64 => "Float64",
+                        };
+
+                        format!(
+                            "{reader}.read{verb}List({reader}.len, 0)",
+                            reader = self.reader_name(),
+                        )
+                    }
+                },
+                DartFFIParamValue::Record(record) => {
+                    format!(
+                        "{record}._m$blittableReadList({reader}.len, {reader})",
+                        reader = self.reader_name()
+                    )
+                }
+            },
+            DartFFIParamBytes::Record(record) => format!(
+                "{record}._m$blittableRead({reader})",
+                reader = self.reader_name()
+            ),
+            DartFFIParamBytes::UTF8 => {
+                format!(
+                    "$$convert.utf8.decode({reader}.readBytes({reader}.len, 0))",
+                    reader = self.reader_name()
+                )
+            }
+        }
+    }
+
+    pub fn value_read_expr(&self) -> String {
+        let DartFFIReturnsPassing::Passing(DartFFIValuePassing::Value(value)) = &self.passing
+        else {
+            panic!("bytes passsing")
+        };
+
+        match value {
+            DartFFIParamValue::Primitive(..) => panic!("unexpected primitive value read"),
+            DartFFIParamValue::Record(record) => format!(
+                "{record}._m$fromStruct({reader})",
+                reader = self.reader_name()
+            ),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -478,7 +743,7 @@ pub struct DartFunction {
     pub ffi_def: DartFFIFunctionDef,
     pub sig: super::DartFunctionSig,
     pub params: Vec<DartFunctionParam>,
-    pub returns: super::DartType,
+    pub returns: DartFunctionReturns,
 }
 
 impl DartFunction {
@@ -505,7 +770,7 @@ impl DartFunction {
                         return None;
                     }
                     DartMethodReceiver::ReceiverPassing(passing) => {
-                        if !matches!(passing, DartFFIParamPassing::WireEncoded) {
+                        if !matches!(passing, DartFFIValuePassing::WireEncoded) {
                             return None;
                         }
                     }
@@ -532,7 +797,7 @@ impl DartFunction {
                         return None;
                     }
                     DartMethodReceiver::ReceiverPassing(passing) => {
-                        if !matches!(passing, DartFFIParamPassing::WireEncoded) {
+                        if !matches!(passing, DartFFIValuePassing::WireEncoded) {
                             return None;
                         }
                     }
@@ -557,54 +822,52 @@ impl DartFunction {
                 } => match receiver {
                     DartMethodReceiver::Static => vec![],
                     DartMethodReceiver::ReceiverPassing(recv_passing) => match recv_passing {
-                        DartFFIParamPassing::Value(value) => match value {
+                        DartFFIValuePassing::Value(value) => match value {
                             DartFFIParamValue::Primitive(..) => match owner {
                                 DartFunctionCallOwner::Class(..) => unreachable!(),
                                 DartFunctionCallOwner::Record(..) => unreachable!(),
                                 DartFunctionCallOwner::Enum(..) => vec![String::from("this.value")],
                             },
-                            DartFFIParamValue::Record(_) => vec![String::from("_m$toStruct()")],
-                            DartFFIParamValue::Enum => vec![String::from("this.value")],
+                            DartFFIParamValue::Record(..) => vec![String::from("_m$toStruct()")],
                         },
-                        DartFFIParamPassing::WireEncoded => vec![
+                        DartFFIValuePassing::WireEncoded => vec![
                             format!("{}.ptr", self.self_storage_name()),
                             format!("{}.len", self.self_wire_name()),
                         ],
-                        DartFFIParamPassing::Bytes(..) => vec![],
-                        DartFFIParamPassing::Closure(..) => unreachable!(),
-                        DartFFIParamPassing::ClassHandle => vec![String::from("_handle")],
-                        DartFFIParamPassing::CallbackHandle { .. } => unreachable!(),
+                        DartFFIValuePassing::Bytes(..) => vec![],
+                        DartFFIValuePassing::Closure(..) => unreachable!(),
+                        DartFFIValuePassing::ClassHandle { .. } => vec![String::from("_handle")],
+                        DartFFIValuePassing::CallbackHandle { .. } => unreachable!(),
                     },
                 },
                 DartFunctionType::Constructor { .. } => vec![],
             },
             self.params.iter().flat_map(|p| match &p.passing {
-                DartFFIParamPassing::Value(value) => match value {
+                DartFFIValuePassing::Value(value) => match value {
                     DartFFIParamValue::Primitive(..) => match &p.ty {
-                        super::DartType::Bool | super::DartType::Int | super::DartType::Double => {
+                        super::DartType::Bool | super::DartType::Int(..) | super::DartType::Double(..) => {
                             vec![p.name.clone()]
                         }
                         super::DartType::Enum(_) => vec![format!("{}.value", p.name)],
                         super::DartType::Custom(_) => todo!(),
                         _ => unreachable!(),
                     },
-                    DartFFIParamValue::Record(_) => vec![format!("{}._m$toStruct()", p.name)],
-                    DartFFIParamValue::Enum => vec![format!("{}.value", p.name)],
+                    DartFFIParamValue::Record(..) => vec![format!("{}._m$toStruct()", p.name)],
                 },
-                DartFFIParamPassing::WireEncoded => {
+                DartFFIValuePassing::WireEncoded => {
                     vec![
                         format!("{}.ptr", p.storage_name()),
                         format!("{}.len", p.buf_writer_name()),
                     ]
                 }
-                DartFFIParamPassing::Bytes(bytes) => match bytes {
+                DartFFIValuePassing::Bytes(bytes) => match bytes {
                     DartFFIParamBytes::Array(value) => match value {
-                        DartFFIParamValue::Primitive(..) | DartFFIParamValue::Enum => vec![
+                        DartFFIParamValue::Primitive(..) => vec![
                             format!("{}.ptr.cast()", p.storage_name()),
-                            format!("{}.length", p.bytes_name()),
+                            format!("{}.lengthInBytes", p.name),
                         ],
                         DartFFIParamValue::Record(_) => vec![
-                            format!("{}.ptr.cast()", p.storage_name()),
+                            format!("{}.ptr", p.storage_name()),
                             format!("{}.length", p.name),
                         ],
                     },
@@ -613,19 +876,19 @@ impl DartFunction {
                         format!("{}._k$structSize", record),
                     ],
                     DartFFIParamBytes::UTF8 => vec![
-                        format!("{}.ptr.cast()", p.storage_name()),
+                        format!("{}.ptr", p.storage_name()),
                         format!("{}.lengthInBytes", p.bytes_name()),
                     ],
                 },
-                DartFFIParamPassing::Closure(..) => {
+                DartFFIValuePassing::Closure(..) => {
                     vec![
                         format!("{}.nativeFunction", p.callable_name()),
                         String::from("$$ffi.nullptr"),
                     ]
                 }
-                DartFFIParamPassing::ClassHandle => vec![format!("{}._handle", p.name)],
-                DartFFIParamPassing::CallbackHandle{ class, nullable } => if *nullable {
-                    vec![format!("({name} == null) ? _$$BoltCallbackHandle.kNull : _I${class}.createCallbackHandle({name})", name = p.name)]
+                DartFFIValuePassing::ClassHandle { .. } => vec![format!("{}._handle", p.name)],
+                DartFFIValuePassing::CallbackHandle{ class, nullable } => if *nullable {
+                    vec![format!("({name} == null) ? _k$BoltCallbackHandleNull : _I${class}.createCallbackHandle({name})", name = p.name)]
                 } else {
                     vec![format!("_I${}.createCallbackHandle({})", class, p.name)]
                 }
@@ -669,15 +932,16 @@ pub enum DartFunctionType {
     },
     Constructor {
         kind: super::DartConstructorKind,
-        is_fallible: bool,
         owner: DartFunctionCallOwner,
+        is_fallible: bool,
+        is_optional: bool,
     },
 }
 
 #[derive(Debug, Clone)]
 pub enum DartMethodReceiver {
     Static,
-    ReceiverPassing(DartFFIParamPassing),
+    ReceiverPassing(DartFFIValuePassing),
 }
 
 #[derive(Debug, Clone)]

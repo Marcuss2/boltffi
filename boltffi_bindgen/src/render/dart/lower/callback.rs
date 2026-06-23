@@ -1,4 +1,4 @@
-use boltffi_ffi_rules::{callable::ExecutionKind, transport::ValueReturnStrategy};
+use boltffi_ffi_rules::callable::ExecutionKind;
 
 use crate::{
     ir::{
@@ -6,9 +6,10 @@ use crate::{
         CallbackMethodDef, CallbackTraitDef, ParamDef, ParamRole, ReadSeq, Transport,
     },
     render::dart::{
-        DartCallback, DartCallbackMethod, DartFFIClosureParam, DartFFIFunctionParamSig,
-        DartFFIFunctionSig, DartFFIIntType, DartFFIType, DartFunctionSig, DartType,
-        NamingConvention,
+        DartCallback, DartCallbackMethod, DartFFIClosureParam, DartFFIClosureReturns,
+        DartFFIFunctionParamSig, DartFFIFunctionSig, DartFFIIntType, DartFFIParamValue,
+        DartFFIReturnsPassing, DartFFIType, DartFFIValuePassing, DartFunctionSig, DartReturnType,
+        DartType, NamingConvention,
     },
 };
 
@@ -23,7 +24,7 @@ impl<'a> super::DartLowerer<'a> {
         transport: &Transport,
         decode_ops: &Option<ReadSeq>,
     ) -> DartFFIClosureParam {
-        let passing = self.param_passing_from_transport(transport);
+        let passing = self.value_passing_from_transport(transport);
         let ty = DartType::from_type_expr(&param_def.type_expr, &self.ffi.catalog);
 
         DartFFIClosureParam {
@@ -60,7 +61,16 @@ impl<'a> super::DartLowerer<'a> {
         cb: &CallbackMethodDef,
         abi_meth: &AbiCallbackMethod,
     ) -> DartCallbackMethod {
-        let params = self.lower_closure_params(&cb.params, &abi_meth.params);
+        // skip callback handle param def
+        let cb_params = &abi_meth.params[1..];
+
+        let input_cb_params = cb_params
+            .iter()
+            .filter(|p| matches!(p.role, ParamRole::Input { .. }))
+            .cloned()
+            .collect::<Vec<_>>();
+        assert!(cb.params.len() == input_cb_params.len());
+        let params = self.lower_closure_params(&cb.params, &input_cb_params);
 
         let mut ffi_args = vec![DartFFIFunctionParamSig {
             name: "_p$handle".to_string(),
@@ -89,25 +99,38 @@ impl<'a> super::DartLowerer<'a> {
                     },
                 ];
 
-                if !matches!(
-                    abi_meth.returns.return_contract().value_strategy(),
-                    ValueReturnStrategy::Void
-                ) {
-                    callback_params.extend([
-                        // result bytes ptr
-                        DartFFIFunctionParamSig {
-                            name: String::new(),
-                            ty: DartFFIType::Pointer(Box::new(DartFFIType::Int(
-                                DartFFIIntType::Uint8,
-                            ))),
-                        },
-                        // result bytes len
-                        DartFFIFunctionParamSig {
-                            name: String::new(),
-                            ty: DartFFIType::Int(DartFFIIntType::UintPtr),
-                        },
-                    ]);
+                if let Some(transport) = &abi_meth.returns.transport {
+                    match transport {
+                        Transport::Scalar(scalar) => {
+                            callback_params.extend([
+                                // direct primitive value
+                                DartFFIFunctionParamSig {
+                                    name: String::new(),
+                                    ty: DartFFIType::from_primitive(scalar.primitive()),
+                                },
+                            ]);
+                        }
+                        Transport::Composite(..) | Transport::Span(..) => {
+                            callback_params.extend([
+                                // result bytes ptr
+                                DartFFIFunctionParamSig {
+                                    name: String::new(),
+                                    ty: DartFFIType::Pointer(Box::new(DartFFIType::Int(
+                                        DartFFIIntType::Uint8,
+                                    ))),
+                                },
+                                // result bytes len
+                                DartFFIFunctionParamSig {
+                                    name: String::new(),
+                                    ty: DartFFIType::Int(DartFFIIntType::UintPtr),
+                                },
+                            ]);
+                        }
+                        Transport::Handle { .. } => todo!(),
+                        Transport::Callback { .. } => todo!(),
+                    }
                 }
+
                 callback_params.push(
                     // This should be FFIStatus but we choose i32 as it's a valid repr
                     DartFFIFunctionParamSig {
@@ -151,6 +174,22 @@ impl<'a> super::DartLowerer<'a> {
             params,
             // ret_ty: DartType::from_return_def(&cb.returns, &self.ffi.catalog),
             kind: cb.execution_kind,
+            returns: DartFFIClosureReturns {
+                ty: DartReturnType::from_return_def(&cb.returns, &self.ffi.catalog),
+                passing: match &abi_meth.returns.transport {
+                    Some(transport) => match DartFFIReturnsPassing::Passing(
+                        self.value_passing_from_transport(transport),
+                    ) {
+                        DartFFIReturnsPassing::Passing(
+                            DartFFIValuePassing::Value(DartFFIParamValue::Record(..))
+                            | DartFFIValuePassing::Bytes(..),
+                        ) => DartFFIReturnsPassing::Passing(DartFFIValuePassing::WireEncoded),
+                        passing => passing,
+                    },
+                    None => DartFFIReturnsPassing::Void,
+                },
+                write_seq: abi_meth.returns.encode_ops.clone(),
+            },
         }
     }
 
