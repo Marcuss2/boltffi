@@ -2,58 +2,19 @@ use boltffi_ffi_rules::callable::ExecutionKind;
 
 use crate::{
     ir::{
-        AbiCallbackInvocation, AbiCallbackMethod, AbiParam, CallbackId, CallbackKind,
-        CallbackMethodDef, CallbackTraitDef, ParamDef, ParamRole, ReadSeq, Transport,
+        AbiCallbackInvocation, AbiCallbackMethod, CallbackId, CallbackKind, CallbackMethodDef,
+        CallbackTraitDef, ParamRole, Transport,
     },
     render::dart::{
-        DartCallback, DartCallbackMethod, DartFFIClosureParam, DartFFIClosureReturns,
-        DartFFIFunctionParamSig, DartFFIFunctionSig, DartFFIIntType, DartFFIParamValue,
-        DartFFIReturnsPassing, DartFFIType, DartFFIValuePassing, DartFunctionSig, DartReturnType,
-        DartType, NamingConvention,
+        DartCallback, DartCallbackMethod, DartFFIFunctionParamSig, DartFFIFunctionSig,
+        DartFFIIntType, DartFFIParamValue, DartFFIReturnsPassing, DartFFIType, DartFFIValuePassing,
+        DartFunctionReturns, DartFunctionSig, DartReturnType, NamingConvention,
     },
 };
 
 impl<'a> super::DartLowerer<'a> {
     fn abi_callback_for(&self, id: &CallbackId) -> Option<&AbiCallbackInvocation> {
         self.abi.callbacks.iter().find(|cb| cb.callback_id == *id)
-    }
-
-    fn lower_closure_param(
-        &self,
-        param_def: &ParamDef,
-        transport: &Transport,
-        decode_ops: &Option<ReadSeq>,
-    ) -> DartFFIClosureParam {
-        let passing = self.value_passing_from_transport(transport);
-        let ty = DartType::from_type_expr(&param_def.type_expr, &self.ffi.catalog);
-
-        DartFFIClosureParam {
-            name: param_def.name.to_string(),
-            recv: passing,
-            read_seq: decode_ops.clone(),
-            ty,
-        }
-    }
-
-    pub(super) fn lower_closure_params(
-        &self,
-        param_defs: &[ParamDef],
-        abi_params: &[AbiParam],
-    ) -> Vec<DartFFIClosureParam> {
-        std::iter::zip(param_defs, abi_params)
-            .map(|(param_def, abi_param)| {
-                let ParamRole::Input {
-                    transport,
-                    decode_ops,
-                    ..
-                } = &abi_param.role
-                else {
-                    unreachable!();
-                };
-
-                self.lower_closure_param(param_def, transport, decode_ops)
-            })
-            .collect()
     }
 
     fn lower_callback_method(
@@ -70,7 +31,6 @@ impl<'a> super::DartLowerer<'a> {
             .cloned()
             .collect::<Vec<_>>();
         assert!(cb.params.len() == input_cb_params.len());
-        let params = self.lower_closure_params(&cb.params, &input_cb_params);
 
         let mut ffi_args = vec![DartFFIFunctionParamSig {
             name: "_p$handle".to_string(),
@@ -171,10 +131,9 @@ impl<'a> super::DartLowerer<'a> {
                     &abi_meth.error,
                 ),
             },
-            params,
-            // ret_ty: DartType::from_return_def(&cb.returns, &self.ffi.catalog),
+            params: self.lower_function_params(&cb.params, &input_cb_params),
             kind: cb.execution_kind,
-            returns: DartFFIClosureReturns {
+            returns: DartFunctionReturns {
                 ty: DartReturnType::from_return_def(&cb.returns, &self.ffi.catalog),
                 passing: match &abi_meth.returns.transport {
                     Some(transport) => match DartFFIReturnsPassing::Passing(
@@ -188,6 +147,7 @@ impl<'a> super::DartLowerer<'a> {
                     },
                     None => DartFFIReturnsPassing::Void,
                 },
+                read_seq: abi_meth.returns.decode_ops.clone(),
                 write_seq: abi_meth.returns.encode_ops.clone(),
             },
         }

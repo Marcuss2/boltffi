@@ -27,104 +27,19 @@ factory {{ owner.name() }}.{{ ctor_name }}
   final {{ func.self_storage_name() }} = _$$BoltCalloc.alloc<$$ffi.Uint8>({{ self_wire_size }});
 {%- endif %}
 {%- for param in func.params %}
-{%- match param.passing %}
-{%- when super::DartFFIValuePassing::WireEncoded %}
-  final {{ param.storage_name() }} = _$$BoltCalloc.alloc<$$ffi.Uint8>({{ param.wire_size_expr() }});
-{%- when _ -%}
-{%- endmatch %}
+{%- filter indent(2) %}{%- include "callable_do_function_args_storage.txt" %}{%- endfilter %}
 {%- endfor %}
 {%- if let Some(self_wire_size) = func.self_wire_size() %}
   final {{ func.self_wire_name() }} = _$$BoltWireEncoder(_$$BoltBufWriter.fromSpan({{ func.self_storage_name() }}.ptr, {{ func.self_storage_name() }}.len));
 {%- endif %}
 {%- for param in func.params %}
-{%- match param.passing %}
-{%- when super::DartFFIValuePassing::WireEncoded %}
-  final {{ param.buf_writer_name() }} = _$$BoltWireEncoder(_$$BoltBufWriter.fromSpan({{ param.storage_name() }}.ptr, {{ param.storage_name() }}.len));
-{%- when super::DartFFIValuePassing::Bytes with (_) %}
-{%- if let Some(bytes_create_expr) = param.bytes_create_expr() %}
-  final {{ param.bytes_name() }} = {{ bytes_create_expr }};
-{%- endif %}
-  final {{ param.storage_name() }} = _$$BoltCalloc.alloc<$$ffi.Uint8>({{ param.bytes_len_expr() }});
-  final {{ param.buf_writer_name() }} = _$$BoltBufWriter.fromSpan({{ param.storage_name() }}.ptr, {{ param.storage_name() }}.len);
-{%- when super::DartFFIValuePassing::Closure with (cb_def) %}
-  final {{ param.callable_name() }} = $$ffi.NativeCallable<
-    {{ cb_def.sig.ret.native_type() }} Function(
-{%- for cb_sig_arg in cb_def.sig.args -%}
-      {{ cb_sig_arg.ty.native_type() }}{% if !loop.last %}, {% endif %} 
-{%- endfor -%}
-    )
-  >.isolateLocal((
-{%- for cb_sig_arg in cb_def.sig.args -%}
-    {{ cb_sig_arg.ty.sub_type() }} {{ cb_sig_arg.name }}{% if !loop.last %}, {% endif %} 
-{%- endfor -%}
-  ) {
-    {%- let cb_params = cb_def.params %}
-    {%- filter indent(4) %}{% include "callable_do_closure_parse_args.txt" %}{% endfilter %}
-    {%- let call_expr %}
-    {{ param.name }}(
-    {%- for cb_param in cb_def.params -%}
-      l${{ cb_param.name }}{% if !loop.last %}, {% endif %} 
-    {%- endfor -%}
-    )
-    {%- endlet %}
-{%- match cb_def.returns.passing -%}
-{%- when super::DartFFIReturnsPassing::Void %}
-    {{ call_expr | indent(4) | trim }};
-{%- when super::DartFFIReturnsPassing::Passing with (ret_passing) %}
-{%- match ret_passing %}
-{%- when super::DartFFIValuePassing::Value with (value)  %}
-{%- match value %}
-{%- when super::DartFFIParamValue::Primitive with (_) %}
-{%- if let super::DartType::Enum(..) = cb_def.returns.ty.inner %}
-    return {{ call_expr | indent(4) | trim }}.value;
-{%- else %}
-    return {{ call_expr | indent(4) | trim }};
-{%- endif %}
-{%- when super::DartFFIParamValue::Record with (_) %}
-    return {{ call_expr | indent(4) | trim }}._m$toStruct();
-{%- endmatch %}
-{%- when super::DartFFIValuePassing::WireEncoded %}
-{%- if let super::DartType::Result { ok, err } = cb_def.returns.ty.inner %}
-    late final $$BoltResult<{{ ok.dart_type() }}, {{ err.dart_type() }}> {{ cb_def.returns.res_name() }};
-    try {
-      {{ cb_def.returns.res_name() }} = $$BoltResult.ok({{ call_expr | indent(6) | trim }});
-    } on {{ err.dart_type() }} catch (e) {
-      {{ cb_def.returns.res_name() }} = $$BoltResult.err(e);
-    } catch (_) {
-      rethrow;
-    }
-{%- else %}
-    final {{ cb_def.returns.res_name() }} = {{ call_expr | indent(4) | trim }};
-{%- endif %}
-    final {{ cb_def.returns.storage_name() }} = _$$BoltCalloc.allocUnmanaged<$$ffi.Uint8>({{ cb_def.returns.wire_size_expr() }});
-    final {{ cb_def.returns.writer_name() }} = _$$BoltWireEncoder(_$$BoltBufWriter.fromSpan({{ cb_def.returns.storage_name() }}.ptr, {{ cb_def.returns.storage_name() }}.len));
-    {{ cb_def.returns.wire_encode_expr() | trim | indent(4, false) }};
-    return $$ffi.Struct.create<_$$BoltFFIBuf>()
-      ..ptr = {{ cb_def.returns.storage_name() }}.ptr
-      ..len = {{ cb_def.returns.writer_name() }}.len
-      ..cap = {{ cb_def.returns.writer_name() }}.len
-      ..align = 1;
-{%- when super::DartFFIValuePassing::ClassHandle with { class, .. } %}
-{%- when super::DartFFIValuePassing::CallbackHandle with { class: cb_class, .. } %}
-{%- when _ %}
-{%- endmatch %}
-{%- when _ %}
-{%- endmatch %}
-  }{% if let Some(exc_ret) = cb_def.exceptional_return() %}, exceptionalReturn: {{ exc_ret }}{% endif %});
-{%- when _ -%}
-{%- endmatch -%}
+{%- filter indent(2) %}{%- include "callable_do_function_parse_args.txt" %}{%- endfilter %}
 {%- endfor %}
 {%- if let Some(self_wire_encode_expr) = func.self_wire_encode_expr() %}
   {{ self_wire_encode_expr|indent(2)|trim }};
 {%- endif %}
 {%- for param in func.params %}
-{%- match param.passing %}
-{%- when super::DartFFIValuePassing::WireEncoded %}
-  {{ param.wire_write_expr()|indent(2)|trim }};
-{%- when super::DartFFIValuePassing::Bytes with (_) %}
-  {{ param.bytes_write_expr()|indent(2)|trim }};
-{%- when _ -%}
-{%- endmatch -%}
+{%- filter indent(2) %}{%- include "callable_do_function_args_write.txt" %}{%- endfilter %}
 {%- endfor %}
 {%- match func.mode %}
 {%- when super::DartFunctionMode::Async with (async_def) %}

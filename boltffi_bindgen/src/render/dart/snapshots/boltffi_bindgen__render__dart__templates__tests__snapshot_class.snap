@@ -181,16 +181,16 @@ final class Person implements $$ffi.Finalizable {
   factory Person(String name, int age) {
     final l$nameBytes = $$convert.utf8.encode(name);
     final l$nameStorage = _$$BoltCalloc.alloc<$$ffi.Uint8>(l$nameBytes.lengthInBytes);
-    final l$nameBuf = _$$BoltBufWriter.fromSpan(l$nameStorage.ptr, l$nameStorage.len);
-    l$nameBuf.writeBytes(l$nameBytes, 0);
+    final l$nameWriter = _$$BoltBufWriter.fromSpan(l$nameStorage.ptr, l$nameStorage.len);
+    l$nameWriter.writeBytes(l$nameBytes, 0);
     return Person._(_f$boltffi_person_new(l$nameStorage.ptr, l$nameBytes.lengthInBytes, age));
   }
 
   factory Person.newWithDefaultAge(String name) {
     final l$nameBytes = $$convert.utf8.encode(name);
     final l$nameStorage = _$$BoltCalloc.alloc<$$ffi.Uint8>(l$nameBytes.lengthInBytes);
-    final l$nameBuf = _$$BoltBufWriter.fromSpan(l$nameStorage.ptr, l$nameStorage.len);
-    l$nameBuf.writeBytes(l$nameBytes, 0);
+    final l$nameWriter = _$$BoltBufWriter.fromSpan(l$nameStorage.ptr, l$nameStorage.len);
+    l$nameWriter.writeBytes(l$nameBytes, 0);
     return Person._(_f$boltffi_person_new_with_default_age(l$nameStorage.ptr, l$nameBytes.lengthInBytes));
   }
 

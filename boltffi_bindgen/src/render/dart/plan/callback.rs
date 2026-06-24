@@ -1,39 +1,22 @@
 use boltffi_ffi_rules::callable::ExecutionKind;
 
 #[derive(Debug, Clone)]
-pub struct DartNativeCallbackMethod {
-    pub vtable_field_name: String,
-    pub sig: super::DartFFIFunctionSig,
-    pub params: Vec<super::DartFFIClosureParam>,
-    pub return_type: super::DartFFIType,
-    pub kind: ExecutionKind,
-}
-
-impl DartNativeCallbackMethod {
-    pub fn is_async(&self) -> bool {
-        matches!(self.kind, ExecutionKind::Async)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct DartNativeCallback {
-    pub vtable_struct_name: String,
-    pub methods: Vec<DartNativeCallbackMethod>,
-}
-
-#[derive(Debug, Clone)]
 pub struct DartCallbackMethod {
     pub name: String,
     pub sig: super::DartFunctionSig,
     pub ffi_sig: super::DartFFIFunctionSig,
-    pub params: Vec<super::DartFFIClosureParam>,
+    pub params: Vec<super::DartFunctionParam>,
     pub kind: ExecutionKind,
-    pub returns: super::DartFFIClosureReturns,
+    pub returns: super::DartFunctionReturns,
 }
 
 impl DartCallbackMethod {
     pub fn is_async(&self) -> bool {
         matches!(self.kind, ExecutionKind::Async)
+    }
+
+    pub fn get_proxy_ffi_params(&self) -> Vec<String> {
+        self.params.iter().flat_map(|p| p.get_ffi_param()).collect()
     }
 }
 

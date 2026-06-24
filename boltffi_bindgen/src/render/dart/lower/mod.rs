@@ -1,15 +1,15 @@
 use crate::{
     ir::{
         AbiCall, AbiContract, AbiParam, AbiType, CallId, CallMode, CallbackKind, ConstructorDef,
-        FfiContract, FunctionId, MethodDef, ParamDef, ParamRole, ReturnDef, SpanContent, Transport,
-        TypeExpr, WriteSeq,
+        FfiContract, FunctionId, MethodDef, ParamDef, ParamRole, ReadSeq, ReturnDef, SpanContent,
+        Transport, TypeExpr, WriteSeq,
     },
     render::dart::{
-        DartConstructorKind, DartFFIClosureDef, DartFFIClosureReturns, DartFFIFunctionDef,
-        DartFFIFunctionParamSig, DartFFIFunctionSig, DartFFIReturnsPassing, DartFFIType,
-        DartFFIValuePassing, DartFunction, DartFunctionCallOwner, DartFunctionMode,
-        DartFunctionParam, DartFunctionReturns, DartFunctionSig, DartFunctionType, DartLibrary,
-        DartMethodReceiver, DartReturnType, DartType, NamingConvention, emit,
+        DartConstructorKind, DartFFIClosureDef, DartFFIFunctionDef, DartFFIFunctionParamSig,
+        DartFFIFunctionSig, DartFFIReturnsPassing, DartFFIType, DartFFIValuePassing, DartFunction,
+        DartFunctionCallOwner, DartFunctionMode, DartFunctionParam, DartFunctionReturns,
+        DartFunctionSig, DartFunctionType, DartLibrary, DartMethodReceiver, DartReturnType,
+        DartType, NamingConvention, emit,
     },
 };
 
@@ -131,8 +131,8 @@ impl<'a> DartLowerer<'a> {
                                 ),
                             },
                             params: self
-                                .lower_closure_params(&meth_def.params, &input_closure_params),
-                            returns: DartFFIClosureReturns {
+                                .lower_function_params(&meth_def.params, &input_closure_params),
+                            returns: DartFunctionReturns {
                                 ty: DartReturnType::from_return_def(
                                     &meth_def.returns,
                                     &self.ffi.catalog,
@@ -144,6 +144,7 @@ impl<'a> DartLowerer<'a> {
                                     None => DartFFIReturnsPassing::Void,
                                 },
                                 write_seq: abi_call.returns.encode_ops.clone(),
+                                read_seq: abi_call.returns.decode_ops.clone(),
                             },
                         }))
                     }
@@ -157,6 +158,7 @@ impl<'a> DartLowerer<'a> {
         param: &ParamDef,
         transport: &Transport,
         encode_ops: &Option<WriteSeq>,
+        decode_ops: &Option<ReadSeq>,
     ) -> DartFunctionParam {
         let passing = self.value_passing_from_transport(transport);
         let ty = DartType::from_type_expr(&param.type_expr, &self.ffi.catalog);
@@ -165,6 +167,7 @@ impl<'a> DartLowerer<'a> {
             name: NamingConvention::param_name(param.name.as_str()),
             passing,
             write_seq: encode_ops.clone().map(emit::remap_write_seq),
+            read_seq: decode_ops.clone(),
             ty,
         }
     }
@@ -184,13 +187,14 @@ impl<'a> DartLowerer<'a> {
                 let ParamRole::Input {
                     transport,
                     encode_ops,
+                    decode_ops,
                     ..
                 } = &abi_param.role
                 else {
                     unreachable!();
                 };
 
-                self.lower_param(param_def, transport, encode_ops)
+                self.lower_param(param_def, transport, encode_ops, decode_ops)
             })
             .collect()
     }
@@ -209,13 +213,6 @@ impl<'a> DartLowerer<'a> {
                 AbiType::InlineCallbackFn { .. } | AbiType::CallbackHandle
             )
         });
-
-        let is_fallible = match &ty {
-            DartFunctionType::TopLevel { .. } | DartFunctionType::Method { .. } => {
-                matches!(returns, ReturnDef::Result { .. })
-            }
-            DartFunctionType::Constructor { is_fallible, .. } => *is_fallible,
-        };
 
         let mode = match &abi_call.mode {
             CallMode::Sync => DartFunctionMode::Sync,
@@ -239,7 +236,7 @@ impl<'a> DartLowerer<'a> {
                             None => DartFFIReturnsPassing::Void,
                         },
                         read_seq: async_call.result.decode_ops.clone(),
-                        is_fallible,
+                        write_seq: async_call.result.encode_ops.clone(),
                     },
                 }))
             }
@@ -278,7 +275,7 @@ impl<'a> DartLowerer<'a> {
                     None => DartFFIReturnsPassing::Void,
                 },
                 read_seq: abi_call.returns.decode_ops.clone(),
-                is_fallible,
+                write_seq: abi_call.returns.encode_ops.clone(),
             },
         }
     }

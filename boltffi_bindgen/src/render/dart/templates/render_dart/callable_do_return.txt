@@ -17,8 +17,8 @@ return {{ class }}._m$fromStruct({{ return_expr | trim }});
 {%- when super::DartFFIValuePassing::WireEncoded %}
 final {{ returns.buf_name() }} = {% filter trim | indent(2, false) -%}{{ return_expr }}{% endfilter %};
 try {
-  final {{ returns.reader_name() }} = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan({{ returns.buf_name() }}.ptr, {{ returns.buf_name() }}.len));
-  return {{ returns.wire_decode_expr() | trim | indent(2, false) }}{% if returns.is_fallible %}.okOrThrow(){% endif %};
+  final {{ returns.wire_name() }} = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan({{ returns.buf_name() }}.ptr, {{ returns.buf_name() }}.len));
+  return {{ returns.wire_decode_expr() | trim | indent(2, false) }}{% if returns.is_fallible() %}.okOrThrow(){% endif %};
 } finally {
   _f$boltffi_free_buf({{ returns.buf_name() }});
 }
@@ -47,8 +47,9 @@ if (_l$handle == $$ffi.nullptr) {
 {%- else %}
 return {{ class }}._({% filter trim | indent(2) -%}{{ return_expr }}{% endfilter %});
 {%- endif %}
-{%- when _ %}
-final _ = {% filter trim | indent(2) -%}{{ return_expr }}{% endfilter %};
+{%- when super::DartFFIValuePassing::CallbackHandle with { class, .. } %}
+return _I${{ class }}Proxy({% filter trim | indent(2) -%}{{ return_expr }}{% endfilter %});
+{%- when _ -%}
 {%- endmatch %}
 {%- when _ %}
 {%- endmatch %}

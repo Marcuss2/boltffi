@@ -79,6 +79,22 @@ impl DartFFIPrimitiveType {
             PrimitiveType::F64 => DartFFIPrimitiveType::Float(DartFFIFloatType::Float64),
         }
     }
+
+    pub fn native_type(&self) -> String {
+        match self {
+            DartFFIPrimitiveType::Bool => String::from("$$ffi.Bool"),
+            DartFFIPrimitiveType::Int(int) => int.native_type(),
+            DartFFIPrimitiveType::Float(float) => float.native_type(),
+        }
+    }
+
+    pub fn sub_type(&self) -> String {
+        match self {
+            DartFFIPrimitiveType::Bool => String::from("bool"),
+            DartFFIPrimitiveType::Int(..) => String::from("int"),
+            DartFFIPrimitiveType::Float(..) => String::from("double"),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

@@ -1,0 +1,5 @@
+{%- match param.passing %}
+{%- when super::DartFFIValuePassing::WireEncoded %}
+final {{ param.storage_name() }} = _$$BoltCalloc.alloc<$$ffi.Uint8>({{ param.wire_size_expr() }});
+{%- when _ -%}
+{%- endmatch %}
