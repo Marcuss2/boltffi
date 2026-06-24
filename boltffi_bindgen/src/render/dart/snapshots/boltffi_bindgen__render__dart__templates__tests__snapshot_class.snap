@@ -186,7 +186,7 @@ final class Person implements $$ffi.Finalizable {
     return Person._(_f$boltffi_person_new(l$nameStorage.ptr, l$nameBytes.lengthInBytes, age));
   }
 
-  factory Person.newWithDefaultAge(String name) {
+  static Person newWithDefaultAge(String name) {
     final l$nameBytes = $$convert.utf8.encode(name);
     final l$nameStorage = _$$BoltCalloc.alloc<$$ffi.Uint8>(l$nameBytes.lengthInBytes);
     final l$nameWriter = _$$BoltBufWriter.fromSpan(l$nameStorage.ptr, l$nameStorage.len);

@@ -6,15 +6,14 @@
 {%- when super::DartFunctionType::Constructor with { kind, owner, is_optional, .. } %}
 {%- match kind %}
 {%- when super::DartConstructorKind::Default %}
-{%- if is_optional %}
-{%- else %}
+{%- match owner %}
+{%- when super::DartFunctionCallOwner::Class with (_) %}
 factory {{ owner.name() }}
-{%- endif %}
+{%- when _ %}
+static {{ owner.name() }}{% if is_optional %}?{% endif %} $new
+{%- endmatch %}
 {%- when super::DartConstructorKind::Named with { name: ctor_name } %}
-{%- if is_optional %}
-{%- else %}
-{%- endif %}
-factory {{ owner.name() }}.{{ ctor_name }}
+static {{ owner.name() }}{% if is_optional %}?{% endif %} {{ ctor_name }}
 {%- endmatch %}
 {%- when _ -%}
 {%- endmatch -%}

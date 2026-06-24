@@ -1,7 +1,9 @@
+use boltffi_ffi_rules::transport::ParamPassingStrategy;
+
 use crate::{
     ir::{
-        AbiRecord, FieldDef, FieldName, FieldReadOp, OffsetExpr, ReadOp, ReadSeq, RecordDef,
-        RecordId, WriteOp, WriteSeq,
+        AbiRecord, CallId, FieldDef, FieldName, FieldReadOp, OffsetExpr, ReadOp, ReadSeq, Receiver,
+        RecordDef, RecordId, ReturnDef, TypeExpr, WriteOp, WriteSeq,
     },
     render::dart::{
         DartBlittableField, DartBlittableLayout, DartFFIType, DartRecord, DartRecordField,
@@ -123,7 +125,27 @@ impl<'a> super::DartLowerer<'a> {
 
         let methods = record
             .method_calls()
-            .map(|(id, meth_def)| self.lower_method(meth_def, id))
+            .map(|(id, meth_def)| {
+                if !matches!(meth_def.receiver, Receiver::Static) {
+                    let CallId::RecordMethod { record_id, .. } = &id else {
+                        unreachable!()
+                    };
+                    let abi_call = self.abi_call_for_call_id(&id);
+                    if matches!(
+                        abi_call.params[0]
+                            .param_contract()
+                            .unwrap()
+                            .passing_strategy(),
+                        ParamPassingStrategy::MutableRef
+                    ) {
+                        let mut meth_def = meth_def.clone();
+                        meth_def.returns = ReturnDef::Value(TypeExpr::Record(record_id.clone()));
+                        return self.lower_method(&meth_def, id);
+                    }
+                }
+
+                self.lower_method(meth_def, id)
+            })
             .collect();
 
         let mut interfaces = vec![];
