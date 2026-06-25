@@ -510,7 +510,13 @@ impl DartType {
                 }
             }
             TypeExpr::Custom(custom_type_id) => DartType::Custom(custom_type_id.to_string()),
-            TypeExpr::Builtin(builtin_id) => DartType::Builtin(builtin_id.to_string()),
+            TypeExpr::Builtin(builtin_id) => DartType::Builtin(match builtin_id.as_str() {
+                "Duration" => String::from("Duration"),
+                "SystemTime" => String::from("DateTime"),
+                "Uuid" => String::from("(int highBits, int lowBits)"),
+                "Url" => String::from("Uri"),
+                b => panic!("Unknown builtin: {b}"),
+            }),
             TypeExpr::Handle(class_id) => DartType::Class(class_id.to_string()),
         }
     }

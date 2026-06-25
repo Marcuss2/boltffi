@@ -323,7 +323,7 @@ pub fn primitive_write_method(primitive: PrimitiveType) -> &'static str {
 
 fn emit_write_primitive(primitive: PrimitiveType, writer_name: &str, value: &str) -> String {
     format!(
-        "{}.{}({});",
+        "{}.{}({})",
         writer_name,
         primitive_write_method(primitive),
         value
@@ -340,7 +340,7 @@ fn emit_write_builtin(id: &BuiltinId, writer_name: &str, value: &str) -> String 
     match id.as_str() {
         "Duration" => format!("{}.writeDuration({})", writer_name, value),
         "SystemTime" => format!("{}.writeInstant({})", writer_name, value),
-        "Uuid" => format!("{}.writeUuid({})", writer_name, value),
+        "Uuid" => format!("{}.writeUUID({})", writer_name, value),
         "Url" => format!("{}.writeUri({})", writer_name, value),
         _ => format!("{}.writeString({})", writer_name, value),
     }
@@ -373,54 +373,36 @@ fn emit_writer_vec(
     value: &str,
     element_type: &TypeExpr,
     element: &WriteSeq,
-    layout: &VecLayout,
+    _layout: &VecLayout,
     writer_name: &str,
 ) -> String {
-    match layout {
-        VecLayout::Blittable { .. } => match element_type {
-            TypeExpr::Primitive(primitive) => {
-                let value = match primitive {
-                    PrimitiveType::Bool => format!("{value}._bytes"),
-                    PrimitiveType::I8
-                    | PrimitiveType::U8
-                    | PrimitiveType::I16
-                    | PrimitiveType::U16
-                    | PrimitiveType::I32
-                    | PrimitiveType::U32
-                    | PrimitiveType::I64
-                    | PrimitiveType::U64
-                    | PrimitiveType::ISize
-                    | PrimitiveType::USize
-                    | PrimitiveType::F32
-                    | PrimitiveType::F64 => value.to_string(),
-                };
+    match element_type {
+        TypeExpr::Primitive(primitive) => {
+            let value = match primitive {
+                PrimitiveType::Bool => format!("{value}._bytes"),
+                PrimitiveType::I8
+                | PrimitiveType::U8
+                | PrimitiveType::I16
+                | PrimitiveType::U16
+                | PrimitiveType::I32
+                | PrimitiveType::U32
+                | PrimitiveType::I64
+                | PrimitiveType::U64
+                | PrimitiveType::ISize
+                | PrimitiveType::USize
+                | PrimitiveType::F32
+                | PrimitiveType::F64 => value.to_string(),
+            };
 
-                format!("{writer_name}.writeBytes({value})")
-            }
-            _ => {
-                let inner_write_expr = emit_writer_write(element, writer_name, "item");
-                format!(
-                    "{writer_name}.writeList({value}, (item, {writer_name}) {{ {}; }})",
-                    inner_write_expr
-                )
-            }
-        },
-        VecLayout::Encoded => match element_type {
-            TypeExpr::Primitive(primitive) => {
-                let inner_write_expr = emit_write_primitive(*primitive, writer_name, "item");
-                format!(
-                    "{writer_name}.writeList({value}, (item, {writer_name}) {{ {}; }})",
-                    inner_write_expr
-                )
-            }
-            _ => {
-                let inner_write_expr = emit_writer_write(element, writer_name, "item");
-                format!(
-                    "{writer_name}.writeList({value}, (item, {writer_name}) {{ {}; }})",
-                    inner_write_expr
-                )
-            }
-        },
+            format!("{writer_name}.writeBytes({value})")
+        }
+        _ => {
+            let inner_write_expr = emit_writer_write(element, writer_name, "_p$item");
+            format!(
+                "{writer_name}.writeList({value}, (_p$item, {writer_name}) {{ {}; }})",
+                inner_write_expr
+            )
+        }
     }
 }
 
@@ -447,10 +429,10 @@ pub fn emit_writer_write(seq: &WriteSeq, writer_name: &str, value: &str) -> Stri
             ..
         }) => emit_writer_vec(value, element_type, element, layout, writer_name),
         Some(WriteOp::Option { some, .. }) => {
-            let inner_write_expr = emit_writer_write(some, writer_name, "value");
+            let inner_write_expr = emit_writer_write(some, writer_name, "_p$value");
 
             format!(
-                "{writer_name}.writeOptional({value}, (value, {writer_name}) {{ {inner_write_expr}; }})"
+                "{writer_name}.writeOptional({value}, (_p$value, {writer_name}) {{ {inner_write_expr}; }})"
             )
         }
         Some(WriteOp::Result { ok, err, .. }) => {
@@ -488,34 +470,28 @@ pub fn primitive_read_method(primitive: PrimitiveType) -> &'static str {
 fn emit_reader_vec(
     element_type: &TypeExpr,
     element: &ReadSeq,
-    layout: &VecLayout,
+    _layout: &VecLayout,
     reader_name: &str,
     is_void: bool,
 ) -> String {
-    match layout {
-        VecLayout::Blittable { .. } => match element_type {
-            TypeExpr::Primitive(primitive) => {
-                let method = match primitive {
-                    PrimitiveType::Bool => "readBoolList",
-                    PrimitiveType::U8 => "readUint8List",
-                    PrimitiveType::I8 => "readInt8List",
-                    PrimitiveType::I16 => "readInt16List",
-                    PrimitiveType::U16 => "readUint16List",
-                    PrimitiveType::I32 => "readInt32List",
-                    PrimitiveType::U32 => "readUint32List",
-                    PrimitiveType::U64 | PrimitiveType::USize => "readUint64List",
-                    PrimitiveType::I64 | PrimitiveType::ISize => "readInt64List",
-                    PrimitiveType::F32 => "readFloat32List",
-                    PrimitiveType::F64 => "readFloat64List",
-                };
-                format!("{reader_name}.{}()", method)
-            }
-            _ => {
-                let inner_read_expr = emit_reader_read(element, reader_name, is_void);
-                format!("{reader_name}.readList(({reader_name}) => {inner_read_expr})")
-            }
-        },
-        VecLayout::Encoded => {
+    match element_type {
+        TypeExpr::Primitive(primitive) => {
+            let method = match primitive {
+                PrimitiveType::Bool => "readBoolList",
+                PrimitiveType::U8 => "readUint8List",
+                PrimitiveType::I8 => "readInt8List",
+                PrimitiveType::I16 => "readInt16List",
+                PrimitiveType::U16 => "readUint16List",
+                PrimitiveType::I32 => "readInt32List",
+                PrimitiveType::U32 => "readUint32List",
+                PrimitiveType::U64 | PrimitiveType::USize => "readUint64List",
+                PrimitiveType::I64 | PrimitiveType::ISize => "readInt64List",
+                PrimitiveType::F32 => "readFloat32List",
+                PrimitiveType::F64 => "readFloat64List",
+            };
+            format!("{reader_name}.{}()", method)
+        }
+        _ => {
             let inner_read_expr = emit_reader_read(element, reader_name, is_void);
             format!("{reader_name}.readList(({reader_name}) => {inner_read_expr})")
         }
@@ -588,11 +564,11 @@ pub fn emit_reader_read(seq: &ReadSeq, reader_name: &str, is_inner_void: bool) -
             )
         }
         ReadOp::Builtin { id, .. } => match id.as_str() {
-            "Duration" => "reader.readDuration()".to_string(),
-            "SystemTime" => "reader.readInstant()".to_string(),
-            "Uuid" => "reader.readUuid()".to_string(),
-            "Url" => "reader.readUri()".to_string(),
-            _ => "reader.readString()".to_string(),
+            "Duration" => format!("{reader_name}.readDuration()"),
+            "SystemTime" => format!("{reader_name}.readInstant()"),
+            "Uuid" => format!("{reader_name}.readUUID()"),
+            "Url" => format!("{reader_name}.readUri()"),
+            _ => format!("{reader_name}.readString()"),
         },
         ReadOp::Custom { underlying, .. } => {
             emit_reader_read(underlying, reader_name, is_inner_void)
@@ -668,10 +644,10 @@ fn emit_vec_size(value: &str, inner: &SizeExpr, layout: &VecLayout) -> String {
             format!("(4 + ({}.length * {}))", value, element_size)
         }
         VecLayout::Encoded => format!(
-            "{value}.fold<int>(4, (sum, item) => sum + {})",
+            "{value}.fold<int>(4, (_p$sum, _p$item) => _p$sum + {})",
             emit_size_expr(&remap_size_expr_value_expr(
                 inner,
-                ValueExpr::Named("item".to_string())
+                ValueExpr::Named("_p$item".to_string())
             ))
         ),
     }

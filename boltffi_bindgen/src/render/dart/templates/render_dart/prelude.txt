@@ -195,28 +195,28 @@ final class _$$BoltBufWriter {
   void writeI8(int v, int offset) => data.setInt8(offset, v);
 
   @pragma('vm:prefer-inline')
-  void writeU16(int v, int offset) => data.setUint16(offset, v, $$typed_data.Endian.little);
+  void writeU16(int v, int offset, [$$typed_data.Endian endian = $$typed_data.Endian.little]) => data.setUint16(offset, v, endian);
 
   @pragma('vm:prefer-inline')
-  void writeI16(int v, int offset) => data.setInt16(offset, v, $$typed_data.Endian.little);
+  void writeI16(int v, int offset, [$$typed_data.Endian endian = $$typed_data.Endian.little]) => data.setInt16(offset, v, endian);
 
   @pragma('vm:prefer-inline')
-  void writeU32(int v, int offset) => data.setUint32(offset, v, $$typed_data.Endian.little);
+  void writeU32(int v, int offset, [$$typed_data.Endian endian = $$typed_data.Endian.little]) => data.setUint32(offset, v, endian);
 
   @pragma('vm:prefer-inline')
-  void writeI32(int v, int offset) => data.setInt32(offset, v, $$typed_data.Endian.little);
+  void writeI32(int v, int offset, [$$typed_data.Endian endian = $$typed_data.Endian.little]) => data.setInt32(offset, v, endian);
 
   @pragma('vm:prefer-inline')
-  void writeU64(int v, int offset) => data.setUint64(offset, v, $$typed_data.Endian.little);
+  void writeU64(int v, int offset, [$$typed_data.Endian endian = $$typed_data.Endian.little]) => data.setUint64(offset, v, endian);
 
   @pragma('vm:prefer-inline')
-  void writeI64(int v, int offset) => data.setInt64(offset, v, $$typed_data.Endian.little);
+  void writeI64(int v, int offset, [$$typed_data.Endian endian = $$typed_data.Endian.little]) => data.setInt64(offset, v, endian);
 
   @pragma('vm:prefer-inline')
-  void writeF32(double v, int offset) => data.setFloat32(offset, v, $$typed_data.Endian.little);
+  void writeF32(double v, int offset, [$$typed_data.Endian endian = $$typed_data.Endian.little]) => data.setFloat32(offset, v, endian);
 
   @pragma('vm:prefer-inline')
-  void writeF64(double v, int offset) => data.setFloat64(offset, v, $$typed_data.Endian.little);
+  void writeF64(double v, int offset, [$$typed_data.Endian endian = $$typed_data.Endian.little]) => data.setFloat64(offset, v, endian);
 
   @pragma('vm:prefer-inline')
   void writeBytes($$typed_data.TypedData v, int offset) {
@@ -240,28 +240,28 @@ extension type _$$BoltWireEncoder(_$$BoltBufWriter writer) {
   void writeI8(int v) => writer.writeI8(v, writer.advance(1));
 
   @pragma('vm:prefer-inline')
-  void writeU16(int v) => writer.writeU16(v, writer.advance(2));
+  void writeU16(int v, [$$typed_data.Endian endian = $$typed_data.Endian.little]) => writer.writeU16(v, writer.advance(2), endian);
 
   @pragma('vm:prefer-inline')
-  void writeI16(int v) => writer.writeI16(v, writer.advance(2));
+  void writeI16(int v, [$$typed_data.Endian endian = $$typed_data.Endian.little]) => writer.writeI16(v, writer.advance(2), endian);
 
   @pragma('vm:prefer-inline')
-  void writeU32(int v) => writer.writeU32(v, writer.advance(4));
+  void writeU32(int v, [$$typed_data.Endian endian = $$typed_data.Endian.little]) => writer.writeU32(v, writer.advance(4), endian);
 
   @pragma('vm:prefer-inline')
-  void writeI32(int v) => writer.writeI32(v, writer.advance(4));
+  void writeI32(int v, [$$typed_data.Endian endian = $$typed_data.Endian.little]) => writer.writeI32(v, writer.advance(4), endian);
 
   @pragma('vm:prefer-inline')
-  void writeU64(int v) => writer.writeU64(v, writer.advance(8));
+  void writeU64(int v, [$$typed_data.Endian endian = $$typed_data.Endian.little]) => writer.writeU64(v, writer.advance(8), endian);
 
   @pragma('vm:prefer-inline')
-  void writeI64(int v) => writer.writeI64(v, writer.advance(8));
+  void writeI64(int v, [$$typed_data.Endian endian = $$typed_data.Endian.little]) => writer.writeI64(v, writer.advance(8), endian);
 
   @pragma('vm:prefer-inline')
-  void writeF32(double v) => writer.writeF32(v, writer.advance(4));
+  void writeF32(double v, [$$typed_data.Endian endian = $$typed_data.Endian.little]) => writer.writeF32(v, writer.advance(4), endian);
 
   @pragma('vm:prefer-inline')
-  void writeF64(double v) => writer.writeF64(v, writer.advance(8));
+  void writeF64(double v, [$$typed_data.Endian endian = $$typed_data.Endian.little]) => writer.writeF64(v, writer.advance(8), endian);
 
   @pragma('vm:prefer-inline')
   void writeBool(bool v) => writeU8(v ? 1 : 0);
@@ -310,6 +310,12 @@ extension type _$$BoltWireEncoder(_$$BoltBufWriter writer) {
     final nanos = (micros % 1000000) * 1000;
     writeI64(seconds);
     writeU32(nanos);
+  }
+
+  @pragma('vm:prefer-inline')
+  void writeUUID((int highBits, int lowBits) v) {
+    writeU64(v.$1, $$typed_data.Endian.big);
+    writeU64(v.$2, $$typed_data.Endian.big);
   }
 
   @pragma('vm:prefer-inline')
@@ -377,28 +383,28 @@ final class _$$BoltBufReader {
   int readI8(int offset) => data.getInt8(offset);
 
   @pragma('vm:prefer-inline')
-  int readU16(int offset) => data.getUint16(offset, $$typed_data.Endian.little);
+  int readU16(int offset, [$$typed_data.Endian endian = $$typed_data.Endian.little]) => data.getUint16(offset, endian);
 
   @pragma('vm:prefer-inline')
-  int readI16(int offset) => data.getInt16(offset, $$typed_data.Endian.little);
+  int readI16(int offset, [$$typed_data.Endian endian = $$typed_data.Endian.little]) => data.getInt16(offset, endian);
 
   @pragma('vm:prefer-inline')
-  int readU32(int offset) => data.getUint32(offset, $$typed_data.Endian.little);
+  int readU32(int offset, [$$typed_data.Endian endian = $$typed_data.Endian.little]) => data.getUint32(offset, endian);
 
   @pragma('vm:prefer-inline')
-  int readI32(int offset) => data.getInt32(offset, $$typed_data.Endian.little);
+  int readI32(int offset, [$$typed_data.Endian endian = $$typed_data.Endian.little]) => data.getInt32(offset, endian);
 
   @pragma('vm:prefer-inline')
-  int readU64(int offset) => data.getUint64(offset, $$typed_data.Endian.little);
+  int readU64(int offset, [$$typed_data.Endian endian = $$typed_data.Endian.little]) => data.getUint64(offset, endian);
 
   @pragma('vm:prefer-inline')
-  int readI64(int offset) => data.getInt64(offset, $$typed_data.Endian.little);
+  int readI64(int offset, [$$typed_data.Endian endian = $$typed_data.Endian.little]) => data.getInt64(offset, endian);
 
   @pragma('vm:prefer-inline')
-  double readF32(int offset) => data.getFloat32(offset, $$typed_data.Endian.little);
+  double readF32(int offset, [$$typed_data.Endian endian = $$typed_data.Endian.little]) => data.getFloat32(offset, endian);
 
   @pragma('vm:prefer-inline')
-  double readF64(int offset) => data.getFloat64(offset, $$typed_data.Endian.little);
+  double readF64(int offset, [$$typed_data.Endian endian = $$typed_data.Endian.little]) => data.getFloat64(offset, endian);
 
   @pragma('vm:prefer-inline')
   $$typed_data.Uint8List readBytes(int size, int offset) {
@@ -463,28 +469,28 @@ extension type _$$BoltWireDecoder(_$$BoltBufReader reader) {
   int readI8() => reader.readI8(reader.advance(1));
 
   @pragma('vm:prefer-inline')
-  int readU16() => reader.readU16(reader.advance(2));
+  int readU16([$$typed_data.Endian endian = $$typed_data.Endian.little]) => reader.readU16(reader.advance(2), endian);
 
   @pragma('vm:prefer-inline')
-  int readI16() => reader.readI16(reader.advance(2));
+  int readI16([$$typed_data.Endian endian = $$typed_data.Endian.little]) => reader.readI16(reader.advance(2), endian);
 
   @pragma('vm:prefer-inline')
-  int readU32() => reader.readU32(reader.advance(4));
+  int readU32([$$typed_data.Endian endian = $$typed_data.Endian.little]) => reader.readU32(reader.advance(4), endian);
 
   @pragma('vm:prefer-inline')
-  int readI32() => reader.readI32(reader.advance(4));
+  int readI32([$$typed_data.Endian endian = $$typed_data.Endian.little]) => reader.readI32(reader.advance(4), endian);
 
   @pragma('vm:prefer-inline')
-  int readU64() => reader.readU64(reader.advance(8));
+  int readU64([$$typed_data.Endian endian = $$typed_data.Endian.little]) => reader.readU64(reader.advance(8), endian);
 
   @pragma('vm:prefer-inline')
-  int readI64() => reader.readI64(reader.advance(8));
+  int readI64([$$typed_data.Endian endian = $$typed_data.Endian.little]) => reader.readI64(reader.advance(8), endian);
 
   @pragma('vm:prefer-inline')
-  double readF32() => reader.readF32(reader.advance(4));
+  double readF32([$$typed_data.Endian endian = $$typed_data.Endian.little]) => reader.readF32(reader.advance(4), endian);
 
   @pragma('vm:prefer-inline')
-  double readF64() => reader.readF64(reader.advance(8));
+  double readF64([$$typed_data.Endian endian = $$typed_data.Endian.little]) => reader.readF64(reader.advance(8), endian);
 
   @pragma('vm:prefer-inline')
   bool readBool() => readU8() != 0;
@@ -587,6 +593,11 @@ extension type _$$BoltWireDecoder(_$$BoltBufReader reader) {
     final seconds = readI64();
     final nanos = readU32();
     return DateTime.fromMicrosecondsSinceEpoch((seconds * 1000000) + (nanos ~/ 1000));
+  }
+
+  @pragma('vm:prefer-inline')
+  (int highBits, int lowBits) readUUID() {
+    return (readU64($$typed_data.Endian.big), readU64($$typed_data.Endian.big));
   }
 
   @pragma('vm:prefer-inline')
