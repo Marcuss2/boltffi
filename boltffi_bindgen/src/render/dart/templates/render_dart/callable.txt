@@ -50,10 +50,10 @@ static {{ owner.name() }}{% if is_optional %}?{% endif %} {{ ctor_name }}
     ),
     pollFuture: _f${{ async_def.poll_symbol }},
     completeFuture: (_p$handle) {
-      final _l$status = $$ffi.Struct.create<_$$BoltFFIStatus>();
-      final _l$res = _f${{ async_def.complete_symbol }}(_p$handle, _l$status.address);
-      if (_l$status.code != 0) {
-        throw $$BoltException("Error completing future: ${_p$handle} with status code: ${_l$status.code}");
+      final _l$status = _$$BoltCalloc.alloc<$$ffi.Int32>($$ffi.sizeOf<$$ffi.Int32>());
+      final _l$res = _f${{ async_def.complete_symbol }}(_p$handle, _l$status.ptr.cast());
+      if (_l$status.ptr.value != 0) {
+        throw $$BoltException("Error completing future: ${_p$handle} with status code: ${_l$status.ptr.value}");
       }
       {%- let returns = async_def.returns %}
       {%- let return_expr %}

@@ -72,5 +72,6 @@ final {{ param.callable_name() }} = $$ffi.NativeCallable<
 {%- when _ %}
 {%- endmatch %}
   }{% if let Some(exc_ret) = cb_def.exceptional_return() %}, exceptionalReturn: {{ exc_ret }}{% endif %});
+{{ param.callable_name() }}.keepIsolateAlive = false;
 {%- when _ -%}
 {%- endmatch -%}
