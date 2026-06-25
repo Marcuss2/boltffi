@@ -543,8 +543,9 @@ impl DartFunctionReturns {
             DartFFIParamBytes::Array(value) => match value {
                 DartFFIParamValue::Primitive(primitive) => match primitive {
                     crate::render::dart::DartFFIPrimitiveType::Bool => format!(
-                        "$$BoltBoolList._m$fromUint8List({reader}.readUint8List({reader}.len, 0))",
-                        reader = self.reader_name()
+                        "$$BoltBoolList._m$fromUint8List({reader}.readUint8List({buf}.len, 0))",
+                        reader = self.reader_name(),
+                        buf = self.buf_name(),
                     ),
                     crate::render::dart::DartFFIPrimitiveType::Int(int) => {
                         let verb = match int {
@@ -561,8 +562,9 @@ impl DartFunctionReturns {
                         };
 
                         format!(
-                            "{reader}.read{verb}List({reader}.len, 0)",
+                            "{reader}.read{verb}List({buf}.len, 0)",
                             reader = self.reader_name(),
+                            buf = self.buf_name(),
                         )
                     }
                     crate::render::dart::DartFFIPrimitiveType::Float(float) => {
@@ -572,15 +574,17 @@ impl DartFunctionReturns {
                         };
 
                         format!(
-                            "{reader}.read{verb}List({reader}.len, 0)",
+                            "{reader}.read{verb}List({buf}.len, 0)",
                             reader = self.reader_name(),
+                            buf = self.buf_name(),
                         )
                     }
                 },
                 DartFFIParamValue::Record(record) => {
                     format!(
-                        "{record}._m$blittableReadList({reader}.len, {reader})",
-                        reader = self.reader_name()
+                        "{record}._m$blittableReadList({buf}.len, {reader})",
+                        reader = self.reader_name(),
+                        buf = self.buf_name(),
                     )
                 }
             },
@@ -590,8 +594,9 @@ impl DartFunctionReturns {
             ),
             DartFFIParamBytes::UTF8 => {
                 format!(
-                    "$$convert.utf8.decode({reader}.readBytes({reader}.len, 0))",
-                    reader = self.reader_name()
+                    "$$convert.utf8.decode({reader}.readBytes({buf}.len, 0))",
+                    reader = self.reader_name(),
+                    buf = self.buf_name(),
                 )
             }
         }

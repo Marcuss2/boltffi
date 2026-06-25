@@ -1,6 +1,6 @@
 use crate::{
     ir::{ReadSeq, StreamMode},
-    render::dart::{DartFFIFunctionDef, DartFFIType, emit},
+    render::dart::{DartFFIFunctionDef, DartFFIParamValue, DartFFIType, DartFFIValuePassing, emit},
 };
 
 #[derive(Debug, Clone)]
@@ -8,6 +8,7 @@ pub struct DartStream {
     pub name: String,
     pub item_ty: super::DartType,
     pub item_read_seq: ReadSeq,
+    pub item_passing: super::DartFFIValuePassing,
     pub ffi_item_ty: DartFFIType,
     pub ffi_item_size: Option<usize>,
     pub subscribe_fn: DartFFIFunctionDef,
@@ -20,11 +21,50 @@ pub struct DartStream {
 }
 
 impl DartStream {
-    pub fn item_wire_decode_expr(&self, reader_name: &str) -> String {
-        emit::emit_reader_read(
-            &self.item_read_seq,
-            reader_name,
-            self.item_ty.is_inner_void(),
-        )
+    pub fn item_wire_decode_expr(&self, wire_name: &str) -> String {
+        emit::emit_reader_read(&self.item_read_seq, wire_name, self.item_ty.is_inner_void())
+    }
+
+    pub fn item_array_read_expr(&self, reader_name: &str, count: &str) -> String {
+        let DartFFIValuePassing::Value(value) = &self.item_passing else {
+            panic!("value passsing")
+        };
+
+        match value {
+            DartFFIParamValue::Primitive(primitive) => match primitive {
+                crate::render::dart::DartFFIPrimitiveType::Bool => format!(
+                    "$$BoltBoolList._m$fromUint8List({reader}.readUint8List({count}, 0))",
+                    reader = reader_name
+                ),
+                crate::render::dart::DartFFIPrimitiveType::Int(int) => {
+                    let verb = match int {
+                        super::DartFFIIntType::Uint8 => "Uint8",
+                        super::DartFFIIntType::Int8 => "Int8",
+                        super::DartFFIIntType::Uint16 => "Uint16",
+                        super::DartFFIIntType::Int16 => "Int16",
+                        super::DartFFIIntType::Uint32 => "Uint32",
+                        super::DartFFIIntType::Int32 => "Int32",
+                        super::DartFFIIntType::Uint64 | super::DartFFIIntType::UintPtr => "Uint64",
+                        super::DartFFIIntType::Int64 | super::DartFFIIntType::IntPtr => "Int64",
+                    };
+
+                    format!("{reader}.read{verb}List({count}, 0)", reader = reader_name)
+                }
+                crate::render::dart::DartFFIPrimitiveType::Float(float) => {
+                    let verb = match float {
+                        super::DartFFIFloatType::Float32 => "Float32",
+                        super::DartFFIFloatType::Float64 => "Float64",
+                    };
+
+                    format!("{reader}.read{verb}List({count}, 0)", reader = reader_name)
+                }
+            },
+            DartFFIParamValue::Record(record) => {
+                format!(
+                    "{record}._m$blittableReadList({count} * {record}._k$structSize, {reader})",
+                    reader = reader_name
+                )
+            }
+        }
     }
 }

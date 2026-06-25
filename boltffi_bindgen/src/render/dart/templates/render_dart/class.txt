@@ -68,20 +68,17 @@ final class {{ class.name }} implements $$ffi.Finalizable {
       if (l$count == 0) {
         return;
       }
-      final List<{{ stream.item_ty.dart_type() }}> l$items = [];
+      final l$bufReader = _$$BoltBufReader(l$buf);
+      controller.addStream(Stream.fromIterable({{ stream.item_array_read_expr("l$bufReader", "l$count") }}));
 {% when None %}
       final l$buf = _f${{ stream.pop_batch_fn.symbol }}(handle, batchSize);
       if (l$buf.len == 0) {
         return;
       }
-      final l$bufReader = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(l$buf.ptr, l$buf.len));
-      final List<{{ stream.item_ty.dart_type() }}> l$items = l$bufReader.readList((l$bufReader) => {{ stream.item_wire_decode_expr("l$bufReader") }});
-      if (l$items.isEmpty) {
-        return;
-      }
+      final l$bufWire = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(l$buf.ptr, l$buf.len));
+      controller.addStream(Stream.fromIterable(l$bufWire.readList((l$bufWire) => {{ stream.item_wire_decode_expr("l$bufWire") }})));
       _f$boltffi_free_buf(l$buf);
 {%- endmatch %}
-      controller.addStream(Stream.fromIterable(l$items));
     });
   }
 {% when crate::ir::StreamMode::Callback %}
@@ -107,20 +104,17 @@ final class {{ class.name }} implements $$ffi.Finalizable {
       if (l$count == 0) {
         return;
       }
-      final List<{{ stream.item_ty.dart_type() }}> l$items = [];
+      final l$bufReader = _$$BoltBufReader(l$buf);
+      controller.addStream(Stream.fromIterable({{ stream.item_array_read_expr("l$bufReader", "l$count") }}));
 {% when None %}
       final l$buf = _f${{ stream.pop_batch_fn.symbol }}(handle, batchSize);
       if (l$buf.len == 0) {
         return;
       }
-      final l$bufReader = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(l$buf.ptr, l$buf.len));
-      final List<{{ stream.item_ty.dart_type() }}> l$items = l$bufReader.readList((l$bufReader) => {{ stream.item_wire_decode_expr("l$bufReader") }});
-      if (l$items.isEmpty) {
-        return;
-      }
+      final l$bufWire = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(l$buf.ptr, l$buf.len));
+      controller.addStream(Stream.fromIterable(l$bufWire.readList((l$bufWire) => {{ stream.item_wire_decode_expr("l$bufWire") }})));
       _f$boltffi_free_buf(l$buf);
 {%- endmatch %}
-      controller.addStream(Stream.fromIterable(l$items));
     });
 
     return stream.listen(cb);
@@ -148,20 +142,18 @@ final class {{ class.name }} implements $$ffi.Finalizable {
       if (l$count == 0) {
         return [];
       }
-      final List<{{ stream.item_ty.dart_type() }}> l$items = [];
+      final l$bufReader = _$$BoltBufReader(l$buf);
+      return {{ stream.item_array_read_expr("l$bufReader", "l$count") }};
 {% when None %}
       final l$buf = _f${{ stream.pop_batch_fn.symbol }}(handle, batchSize);
       if (l$buf.len == 0) {
         return;
       }
-      final l$bufReader = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(l$buf.ptr, l$buf.len));
-      final List<{{ stream.item_ty.dart_type() }}> l$items = l$bufReader.readList((l$bufReader) => {{ stream.item_wire_decode_expr("l$bufReader") }});
-      if (l$items.isEmpty) {
-        return [];
-      }
+      final l$bufWire = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(l$buf.ptr, l$buf.len));
+      final l$items = l$bufWire.readList((l$bufWire) => {{ stream.item_wire_decode_expr("l$bufWire") }});
       _f$boltffi_free_buf(l$buf);
-{%- endmatch %}
       return l$items;
+{%- endmatch %}
     });
   }
 {% endmatch -%}

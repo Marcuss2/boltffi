@@ -285,11 +285,7 @@ extension type _$$BoltWireEncoder(_$$BoltBufWriter writer) {
   }
 
   @pragma('vm:prefer-inline')
-  void writeString(String v) {
-    final encoded = $$convert.utf8.encode(v);
-    writeU32(encoded.length);
-    writeBytes(encoded);
-  }
+  void writeString(String v) => writeBytes($$convert.utf8.encode(v));
 
   @pragma('vm:prefer-inline')
   void writeUri(Uri v) => writeString(v.toString());

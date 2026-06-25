@@ -9,17 +9,17 @@ external void _f$boltffi_person_free($$ffi.Pointer<$$ffi.Void> handle);
 
 @$$ffi.Native<
   $$ffi.Pointer<$$ffi.Void> Function($$ffi.Pointer<$$ffi.Uint8>, $$ffi.UintPtr, $$ffi.Uint32)
->(symbol: 'boltffi_person_new', isLeaf: true)
+>(symbol: 'boltffi_person_new')
 external $$ffi.Pointer<$$ffi.Void> _f$boltffi_person_new($$ffi.Pointer<$$ffi.Uint8> namePtr, int nameLen, int age);
 
 @$$ffi.Native<
   $$ffi.Pointer<$$ffi.Void> Function($$ffi.Pointer<$$ffi.Uint8>, $$ffi.UintPtr)
->(symbol: 'boltffi_person_new_with_default_age', isLeaf: true)
+>(symbol: 'boltffi_person_new_with_default_age')
 external $$ffi.Pointer<$$ffi.Void> _f$boltffi_person_new_with_default_age($$ffi.Pointer<$$ffi.Uint8> namePtr, int nameLen);
 
 @$$ffi.Native<
   _$$BoltFFIBuf Function($$ffi.Pointer<$$ffi.Void>)
->(symbol: 'boltffi_person_get_name', isLeaf: true)
+>(symbol: 'boltffi_person_get_name')
 external _$$BoltFFIBuf _f$boltffi_person_get_name($$ffi.Pointer<$$ffi.Void> self);
 
 @$$ffi.Native<
@@ -198,7 +198,7 @@ final class Person implements $$ffi.Finalizable {
     final _l$resBuf = _f$boltffi_person_get_name(_handle);
     try {
       final _l$resReader = _$$BoltBufReader.fromSpan(_l$resBuf.ptr, _l$resBuf.len);
-      return $$convert.utf8.decode(_l$resReader.readBytes(_l$resReader.len, 0));
+      return $$convert.utf8.decode(_l$resReader.readBytes(_l$resBuf.len, 0));
     } finally {
       _f$boltffi_free_buf(_l$resBuf);
     }
@@ -221,9 +221,9 @@ final class Person implements $$ffi.Finalizable {
       if (l$count == 0) {
         return;
       }
-      final List<double> l$items = [];
+      final l$bufReader = _$$BoltBufReader(l$buf);
+      controller.addStream(Stream.fromIterable(l$bufReader.readFloat32List(l$count, 0)));
 
-      controller.addStream(Stream.fromIterable(l$items));
     });
   }
 
@@ -244,9 +244,9 @@ final class Person implements $$ffi.Finalizable {
       if (l$count == 0) {
         return [];
       }
-      final List<double> l$items = [];
+      final l$bufReader = _$$BoltBufReader(l$buf);
+      return l$bufReader.readFloat32List(l$count, 0);
 
-      return l$items;
     });
   }
 
@@ -267,9 +267,9 @@ final class Person implements $$ffi.Finalizable {
       if (l$count == 0) {
         return;
       }
-      final List<double> l$items = [];
+      final l$bufReader = _$$BoltBufReader(l$buf);
+      controller.addStream(Stream.fromIterable(l$bufReader.readFloat32List(l$count, 0)));
 
-      controller.addStream(Stream.fromIterable(l$items));
     });
 
     return stream.listen(cb);
@@ -289,13 +289,9 @@ final class Person implements $$ffi.Finalizable {
       if (l$buf.len == 0) {
         return;
       }
-      final l$bufReader = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(l$buf.ptr, l$buf.len));
-      final List<String> l$items = l$bufReader.readList((l$bufReader) => l$bufReader.readString());
-      if (l$items.isEmpty) {
-        return;
-      }
+      final l$bufWire = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(l$buf.ptr, l$buf.len));
+      controller.addStream(Stream.fromIterable(l$bufWire.readList((l$bufWire) => l$bufWire.readString())));
       _f$boltffi_free_buf(l$buf);
-      controller.addStream(Stream.fromIterable(l$items));
     });
   }
 
@@ -313,11 +309,8 @@ final class Person implements $$ffi.Finalizable {
       if (l$buf.len == 0) {
         return;
       }
-      final l$bufReader = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(l$buf.ptr, l$buf.len));
-      final List<String> l$items = l$bufReader.readList((l$bufReader) => l$bufReader.readString());
-      if (l$items.isEmpty) {
-        return [];
-      }
+      final l$bufWire = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(l$buf.ptr, l$buf.len));
+      final l$items = l$bufWire.readList((l$bufWire) => l$bufWire.readString());
       _f$boltffi_free_buf(l$buf);
       return l$items;
     });
@@ -337,13 +330,9 @@ final class Person implements $$ffi.Finalizable {
       if (l$buf.len == 0) {
         return;
       }
-      final l$bufReader = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(l$buf.ptr, l$buf.len));
-      final List<String> l$items = l$bufReader.readList((l$bufReader) => l$bufReader.readString());
-      if (l$items.isEmpty) {
-        return;
-      }
+      final l$bufWire = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(l$buf.ptr, l$buf.len));
+      controller.addStream(Stream.fromIterable(l$bufWire.readList((l$bufWire) => l$bufWire.readString())));
       _f$boltffi_free_buf(l$buf);
-      controller.addStream(Stream.fromIterable(l$items));
     });
 
     return stream.listen(cb);

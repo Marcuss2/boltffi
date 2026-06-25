@@ -62,6 +62,7 @@ impl<'a> super::DartLowerer<'a> {
             name: NamingConvention::function_name(stream.id.as_str()),
             item_ty: DartType::from_type_expr(&stream.item_type, &self.ffi.catalog),
             item_read_seq: decode_ops.clone(),
+            item_passing: self.value_passing_from_transport(&abi_stream.item_transport),
             ffi_item_ty: DartFFIType::from_transport(&abi_stream.item_transport),
             ffi_item_size: abi_stream.item_size,
             subscribe_fn: DartFFIFunctionDef {

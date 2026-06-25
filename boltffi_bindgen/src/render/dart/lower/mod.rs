@@ -1,6 +1,6 @@
 use crate::{
     ir::{
-        AbiCall, AbiContract, AbiParam, AbiType, CallId, CallMode, CallbackKind, ConstructorDef,
+        AbiCall, AbiContract, AbiParam, CallId, CallMode, CallbackKind, ConstructorDef,
         FfiContract, FunctionId, MethodDef, ParamDef, ParamRole, ReadSeq, ReturnDef, SpanContent,
         Transport, TypeExpr, WriteSeq,
     },
@@ -207,13 +207,6 @@ impl<'a> DartLowerer<'a> {
         param_defs: &[ParamDef],
         returns: &ReturnDef,
     ) -> DartFunction {
-        let is_not_leaf = abi_call.params.iter().any(|p| {
-            matches!(
-                p.abi_type,
-                AbiType::InlineCallbackFn { .. } | AbiType::CallbackHandle
-            )
-        });
-
         let mode = match &abi_call.mode {
             CallMode::Sync => DartFunctionMode::Sync,
             CallMode::Async(async_call) => {
@@ -263,7 +256,7 @@ impl<'a> DartLowerer<'a> {
                         CallMode::Async(..) => DartFFIType::Pointer(Box::new(DartFFIType::Void)),
                     },
                 },
-                is_leaf: !is_not_leaf,
+                is_leaf: false,
             },
             sig: DartFunctionSig::from_params_return_def(param_defs, returns, &self.ffi.catalog),
             returns: DartFunctionReturns {
