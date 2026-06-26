@@ -270,14 +270,14 @@ impl DartFunctionParam {
                     },
                 },
                 DartFFIParamValue::Record(record) => format!(
-                    "{}._m$fromStructPtr({}, {})",
+                    "{}._m$blittableReadList({len}, _$$BoltBufReader.fromSpan({ptr}, {len}))",
                     record,
-                    self.ffi_param_ptr_name(),
-                    self.ffi_param_len_name(),
+                    ptr = self.ffi_param_ptr_name(),
+                    len = self.ffi_param_len_name(),
                 ),
             },
             DartFFIParamBytes::Record(record) => format!(
-                "{}._m$fromStructPtr({}, {})",
+                "{}._m$blittableRead(_$$BoltBufReader.fromSpan({}, {}))",
                 record,
                 self.ffi_param_ptr_name(),
                 self.ffi_param_len_name(),
