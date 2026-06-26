@@ -413,11 +413,11 @@ impl DartFunctionParam {
                 DartFFIParamBytes::Array(value) => match value {
                     DartFFIParamValue::Primitive(..) => vec![
                         format!("{}.ptr.cast()", self.storage_name()),
-                        format!("{}.lengthInBytes", self.name),
+                        format!("{}.length", self.name),
                     ],
                     DartFFIParamValue::Record(_) => vec![
                         format!("{}.ptr", self.storage_name()),
-                        format!("{}.length", self.name),
+                        format!("{}.len", self.storage_name()),
                     ],
                 },
                 DartFFIParamBytes::Record(record) => vec![

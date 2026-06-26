@@ -413,47 +413,47 @@ final class _$$BoltBufReader {
   bool readBool(int offset) => readU8(offset) != 0;
 
   @pragma('vm:prefer-inline')
-  $$typed_data.Uint8List readUint8List(int len, int offset) => readBytes(len, offset);
+  $$typed_data.Uint8List readUint8List(int bytesLen, int offset) => readBytes(bytesLen, offset);
 
   @pragma('vm:prefer-inline')
-  $$typed_data.Int8List readInt8List(int len, int offset) =>
-      readBytes(len, offset).buffer.asInt8List();
+  $$typed_data.Int8List readInt8List(int bytesLen, int offset) =>
+      readBytes(bytesLen, offset).buffer.asInt8List();
 
   @pragma('vm:prefer-inline')
-  $$typed_data.Uint16List readUint16List(int len, int offset) =>
-      readBytes(len * 2, offset).buffer.asUint16List();
+  $$typed_data.Uint16List readUint16List(int bytesLen, int offset) =>
+      readBytes(bytesLen, offset).buffer.asUint16List();
 
   @pragma('vm:prefer-inline')
-  $$typed_data.Int16List readInt16List(int len, int offset) =>
-      readBytes(len * 2, offset).buffer.asInt16List();
+  $$typed_data.Int16List readInt16List(int bytesLen, int offset) =>
+      readBytes(bytesLen, offset).buffer.asInt16List();
 
   @pragma('vm:prefer-inline')
-  $$typed_data.Uint32List readUint32List(int len, int offset) =>
-      readBytes(len * 4, offset).buffer.asUint32List();
+  $$typed_data.Uint32List readUint32List(int bytesLen, int offset) =>
+      readBytes(bytesLen, offset).buffer.asUint32List();
 
   @pragma('vm:prefer-inline')
-  $$typed_data.Int32List readInt32List(int len, int offset) =>
-      readBytes(len * 4, offset).buffer.asInt32List();
+  $$typed_data.Int32List readInt32List(int bytesLen, int offset) =>
+      readBytes(bytesLen, offset).buffer.asInt32List();
 
   @pragma('vm:prefer-inline')
-  $$typed_data.Uint64List readUint64List(int len, int offset) =>
-      readBytes(len * 8, offset).buffer.asUint64List();
+  $$typed_data.Uint64List readUint64List(int bytesLen, int offset) =>
+      readBytes(bytesLen, offset).buffer.asUint64List();
 
   @pragma('vm:prefer-inline')
-  $$typed_data.Int64List readInt64List(int len, int offset) =>
-      readBytes(len * 8, offset).buffer.asInt64List();
+  $$typed_data.Int64List readInt64List(int bytesLen, int offset) =>
+      readBytes(bytesLen, offset).buffer.asInt64List();
 
   @pragma('vm:prefer-inline')
-  $$typed_data.Float32List readFloat32List(int len, int offset) =>
-      readBytes(len * 4, offset).buffer.asFloat32List();
+  $$typed_data.Float32List readFloat32List(int bytesLen, int offset) =>
+      readBytes(bytesLen, offset).buffer.asFloat32List();
 
   @pragma('vm:prefer-inline')
-  $$typed_data.Float64List readFloat64List(int len, int offset) =>
-      readBytes(len * 8, offset).buffer.asFloat64List();
+  $$typed_data.Float64List readFloat64List(int bytesLen, int offset) =>
+      readBytes(bytesLen, offset).buffer.asFloat64List();
 
   @pragma('vm:prefer-inline')
-  $$BoltBoolList readBoolList(int len, int offset) =>
-      $$BoltBoolList._m$fromUint8List(readBytes(len, offset));
+  $$BoltBoolList readBoolList(int bytesLen, int offset) =>
+      $$BoltBoolList._m$fromUint8List(readBytes(bytesLen, offset));
 }
 
 
