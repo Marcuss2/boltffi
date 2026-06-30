@@ -7,6 +7,9 @@ final {{ param.bytes_name() }} = {{ bytes_create_expr }};
 {%- endif %}
 final {{ param.storage_name() }} = _$$BoltCalloc.alloc<$$ffi.Uint8>({{ param.bytes_len_expr() }});
 final {{ param.writer_name() }} = _$$BoltBufWriter.fromSpan({{ param.storage_name() }}.ptr, {{ param.storage_name() }}.len);
+{%- when super::DartFFIValuePassing::List with (_) %}
+final {{ param.storage_name() }} = _$$BoltCalloc.alloc<$$ffi.Uint8>({{ param.list_bytes_len_expr() }});
+final {{ param.writer_name() }} = _$$BoltBufWriter.fromSpan({{ param.storage_name() }}.ptr, {{ param.storage_name() }}.len);
 {%- when super::DartFFIValuePassing::Closure with (cb_def) %}
 final {{ param.callable_name() }} = $$ffi.NativeCallable<
   {{ cb_def.sig.ret.native_type() }} Function(

@@ -3,6 +3,8 @@
 {{ param.wire_write_expr()|indent(2)|trim }};
 {%- when super::DartFFIValuePassing::Bytes with (_) %}
 {{ param.bytes_write_expr()|indent(2)|trim }};
+{%- when super::DartFFIValuePassing::List with (_) %}
+{{ param.list_bytes_write_expr()|indent(2)|trim }};
 {%- when _ -%}
 {%- endmatch -%}
 

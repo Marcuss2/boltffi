@@ -202,6 +202,7 @@ final class _$$BoltUtil {
   }
 
   static bool fallibleCompare<T, E extends Exception>($$BoltResult<T, E> a, $$BoltResult<T, E> b, bool Function(T, T) okCompare, bool Function(E, E) errCompare) {
+    if (identical(a, b)) return true;
     return switch ((a, b)) {
       ($$BoltResult$Ok(value: final okA), $$BoltResult$Ok(value: final okB)) => okCompare(okA, okB),
       ($$BoltResult$Err(value: final errA), $$BoltResult$Err(value: final errB)) => errCompare(errA, errB),

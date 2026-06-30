@@ -1,3 +1,5 @@
+use boltffi_ffi_rules::transport::{ParamContract, ParamPassingStrategy};
+
 use crate::{
     ir::{
         AbiCall, AbiContract, AbiParam, CallId, CallMode, CallbackKind, ConstructorDef,
@@ -153,14 +155,33 @@ impl<'a> DartLowerer<'a> {
         }
     }
 
+    fn value_passing_from_param_contract_transport(
+        &self,
+        contract: &ParamContract,
+        transport: &Transport,
+    ) -> DartFFIValuePassing {
+        match transport {
+            Transport::Span(SpanContent::Composite(layout)) => match contract.passing_strategy() {
+                ParamPassingStrategy::ByValue => {
+                    DartFFIValuePassing::record_value_list(layout.record_id.to_string())
+                }
+                ParamPassingStrategy::SharedRef | ParamPassingStrategy::MutableRef => {
+                    DartFFIValuePassing::record_bytes(layout.record_id.to_string())
+                }
+            },
+            _ => self.value_passing_from_transport(transport),
+        }
+    }
+
     fn lower_param(
         &self,
         param: &ParamDef,
+        contract: &ParamContract,
         transport: &Transport,
         encode_ops: &Option<WriteSeq>,
         decode_ops: &Option<ReadSeq>,
     ) -> DartFunctionParam {
-        let passing = self.value_passing_from_transport(transport);
+        let passing = self.value_passing_from_param_contract_transport(contract, transport);
         let ty = DartType::from_type_expr(&param.type_expr, &self.ffi.catalog);
 
         DartFunctionParam {
@@ -185,6 +206,7 @@ impl<'a> DartLowerer<'a> {
         std::iter::zip(param_defs, input_abi_params)
             .map(|(param_def, abi_param)| {
                 let ParamRole::Input {
+                    contract,
                     transport,
                     encode_ops,
                     decode_ops,
@@ -194,7 +216,7 @@ impl<'a> DartLowerer<'a> {
                     unreachable!();
                 };
 
-                self.lower_param(param_def, transport, encode_ops, decode_ops)
+                self.lower_param(param_def, contract, transport, encode_ops, decode_ops)
             })
             .collect()
     }
