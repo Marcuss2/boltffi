@@ -2,7 +2,7 @@
 {%- when super::DartFunctionType::TopLevel with { name: func_name, .. } %}
 {% if func.is_async() %}Future<{{ func.sig.ret.dart_type() }}>{% else %}{{ func.sig.ret.dart_type() }}{% endif %} {{ func_name }}
 {%- when super::DartFunctionType::Method with { name: meth_name, receiver, owner } %}
-{% if func.is_async() %}Future<{{ func.sig.ret.dart_type() }}>{% else %}{{ func.sig.ret.dart_type() }}{% endif %} {{ meth_name }} 
+{% if let super::DartMethodReceiver::Static = receiver %}static {% endif %}{% if func.is_async() %}Future<{{ func.sig.ret.dart_type() }}>{% else %}{{ func.sig.ret.dart_type() }}{% endif %} {{ meth_name }} 
 {%- when super::DartFunctionType::Constructor with { kind, owner, is_optional, .. } %}
 {%- match kind %}
 {%- when super::DartConstructorKind::Default %}

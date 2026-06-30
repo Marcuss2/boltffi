@@ -23,6 +23,11 @@ external $$ffi.Pointer<$$ffi.Void> _f$boltffi_person_new_with_default_age($$ffi.
 external _$$BoltFFIBuf _f$boltffi_person_get_name($$ffi.Pointer<$$ffi.Void> self);
 
 @$$ffi.Native<
+  _$$BoltFFIBuf Function()
+>(symbol: 'boltffi_person_get_default_name')
+external _$$BoltFFIBuf _f$boltffi_person_get_default_name();
+
+@$$ffi.Native<
   $$ffi.Pointer<$$ffi.Void> Function($$ffi.Pointer<$$ffi.Void>)
 >(symbol: 'boltffi_person_temperature_event_async', isLeaf: true)
 external $$ffi.Pointer<$$ffi.Void> _f$boltffi_person_temperature_event_async($$ffi.Pointer<$$ffi.Void> handle);
@@ -196,6 +201,16 @@ final class Person implements $$ffi.Finalizable {
 
   String getName() {
     final _l$resBuf = _f$boltffi_person_get_name(_handle);
+    try {
+      final _l$resWire = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(_l$resBuf.ptr, _l$resBuf.len));
+      return _l$resWire.readString();
+    } finally {
+      _f$boltffi_free_buf(_l$resBuf);
+    }
+  }
+
+  static String getDefaultName() {
+    final _l$resBuf = _f$boltffi_person_get_default_name();
     try {
       final _l$resWire = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(_l$resBuf.ptr, _l$resBuf.len));
       return _l$resWire.readString();
