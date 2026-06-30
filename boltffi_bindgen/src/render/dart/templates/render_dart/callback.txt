@@ -79,6 +79,9 @@ final class {{ cb.impl_class_name }}Proxy implements {{ cb.class_name }} {
 {%- when super::DartFFIReturnsPassing::Void %}
     late final $$ffi.NativeCallable<$$ffi.Void Function($$ffi.Uint64, $$ffi.Int32)> _l$completerCallbackCallable;
     _l$completerCallbackCallable = $$ffi.NativeCallable.listener((int _p$data, int _p$outStatus) {
+      if (_p$outStatus != 0) {
+        throw $$BoltException("{{ cb.class_name }}.{{ method.name }}(...) foreign future panicked");
+      }
       _l$completerCallbackCallable.close();
       _l$completer.complete(null);
     });
@@ -90,6 +93,9 @@ final class {{ cb.impl_class_name }}Proxy implements {{ cb.class_name }} {
     final _l$outPtr = _$$BoltCalloc.alloc<{{ primitive.native_type() }}>($$ffi.sizeOf<{{ primitive.native_type() }}>());
     late final $$ffi.NativeCallable<$$ffi.Void Function($$ffi.Uint64, {{ primitive.native_type() }}, $$ffi.Int32)> _l$completerCallbackCallable;
     _l$completerCallbackCallable = $$ffi.NativeCallable.listener((int _p$data, {{ primitive.sub_type() }} _p$out, int _p$outStatus) {
+      if (_p$outStatus != 0) {
+        throw $$BoltException("{{ cb.class_name }}.{{ method.name }}(...) foreign future panicked");
+      }
       _l$completerCallbackCallable.close();
 {%- if let super::DartType::Enum(class) = method.returns.ty.inner %}
       _l$completer.complete({{ class }}._m$fromValue(_p$out));
@@ -102,6 +108,9 @@ final class {{ cb.impl_class_name }}Proxy implements {{ cb.class_name }} {
 {%- when super::DartFFIValuePassing::WireEncoded %}
     late final $$ffi.NativeCallable<$$ffi.Void Function($$ffi.Uint64, $$ffi.Pointer<$$ffi.Uint8>, $$ffi.UintPtr, $$ffi.Int32)> _l$completerCallbackCallable;
     _l$completerCallbackCallable = $$ffi.NativeCallable.listener((int _p$data, $$ffi.Pointer<$$ffi.Uint8> _p$outPtr, int _p$outLen, int _p$outStatus) {
+      if (_p$outStatus != 0) {
+        throw $$BoltException("{{ cb.class_name }}.{{ method.name }}(...) foreign future panicked");
+      }
       _l$completerCallbackCallable.close();
       final {{ method.returns.wire_name() }} = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(_p$outPtr, _p$outLen));
       _l$completer.complete({{ method.returns.wire_decode_expr() | trim | indent(6, false) }}{% if method.returns.is_fallible() %}.okOrThrow(){% endif %});

@@ -77,6 +77,9 @@ final class _I$ICallbackProxy implements ICallback {
     final _l$outPtr = _$$BoltCalloc.alloc<$$ffi.Uint32>($$ffi.sizeOf<$$ffi.Uint32>());
     late final $$ffi.NativeCallable<$$ffi.Void Function($$ffi.Uint64, $$ffi.Uint32, $$ffi.Int32)> _l$completerCallbackCallable;
     _l$completerCallbackCallable = $$ffi.NativeCallable.listener((int _p$data, int _p$out, int _p$outStatus) {
+      if (_p$outStatus != 0) {
+        throw $$BoltException("ICallback.mapU32(...) foreign future panicked");
+      }
       _l$completerCallbackCallable.close();
       _l$completer.complete(_p$out);
     });
@@ -91,6 +94,9 @@ final class _I$ICallbackProxy implements ICallback {
     l$sWire.writeString(s);
     late final $$ffi.NativeCallable<$$ffi.Void Function($$ffi.Uint64, $$ffi.Pointer<$$ffi.Uint8>, $$ffi.UintPtr, $$ffi.Int32)> _l$completerCallbackCallable;
     _l$completerCallbackCallable = $$ffi.NativeCallable.listener((int _p$data, $$ffi.Pointer<$$ffi.Uint8> _p$outPtr, int _p$outLen, int _p$outStatus) {
+      if (_p$outStatus != 0) {
+        throw $$BoltException("ICallback.mapStringRef(...) foreign future panicked");
+      }
       _l$completerCallbackCallable.close();
       final _l$resWire = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(_p$outPtr, _p$outLen));
       _l$completer.complete(_l$resWire.readString());
@@ -106,6 +112,9 @@ final class _I$ICallbackProxy implements ICallback {
     l$sWire.writeString(s);
     late final $$ffi.NativeCallable<$$ffi.Void Function($$ffi.Uint64, $$ffi.Pointer<$$ffi.Uint8>, $$ffi.UintPtr, $$ffi.Int32)> _l$completerCallbackCallable;
     _l$completerCallbackCallable = $$ffi.NativeCallable.listener((int _p$data, $$ffi.Pointer<$$ffi.Uint8> _p$outPtr, int _p$outLen, int _p$outStatus) {
+      if (_p$outStatus != 0) {
+        throw $$BoltException("ICallback.mapString(...) foreign future panicked");
+      }
       _l$completerCallbackCallable.close();
       final _l$resWire = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(_p$outPtr, _p$outLen));
       _l$completer.complete(_l$resWire.readString());
@@ -121,6 +130,9 @@ final class _I$ICallbackProxy implements ICallback {
     l$bytesWire.writeBytes(bytes);
     late final $$ffi.NativeCallable<$$ffi.Void Function($$ffi.Uint64, $$ffi.Int32)> _l$completerCallbackCallable;
     _l$completerCallbackCallable = $$ffi.NativeCallable.listener((int _p$data, int _p$outStatus) {
+      if (_p$outStatus != 0) {
+        throw $$BoltException("ICallback.processBytes(...) foreign future panicked");
+      }
       _l$completerCallbackCallable.close();
       _l$completer.complete(null);
     });
