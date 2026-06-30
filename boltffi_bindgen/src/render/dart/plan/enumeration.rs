@@ -64,8 +64,7 @@ impl DartEnum {
 
     pub fn tag_writer_write(&self, variant: &DartEnumVariant, writer_name: &str) -> String {
         format!(
-            "{writer_name}.{}({})",
-            emit::primitive_write_method(self.tag_type),
+            "{writer_name}.writeI32({})",
             variant.tag
         )
     }

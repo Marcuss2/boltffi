@@ -513,14 +513,11 @@ pub fn emit_reader_read(seq: &ReadSeq, reader_name: &str, is_inner_void: bool) -
         }
         ReadOp::Enum { id, layout, .. } => match layout {
             EnumLayout::CStyle {
-                tag_type,
-                is_error: false,
-                ..
+                is_error: false, ..
             } => {
                 format!(
-                    "{}._m$fromValue({reader_name}.{}())",
+                    "{}._m$wireDecode({reader_name})",
                     render_type_name(id.as_str()),
-                    primitive_read_method(*tag_type),
                 )
             }
             EnumLayout::CStyle { is_error: true, .. }

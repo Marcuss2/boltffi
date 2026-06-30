@@ -24,7 +24,7 @@ enum {{ dart_enum.name }}{% if dart_enum.is_error %} implements Exception{% endi
   }
 
   factory {{ dart_enum.name }}._m$wireDecode(_$$BoltWireDecoder _p$reader) {
-    return {{ dart_enum.name }}._m$fromValue({{ dart_enum.tag_reader_read("_p$reader") }});
+    return {{ dart_enum.name }}._m$fromValue(_p$reader.readI32());
   }
 
   void _m$wireEncode(_$$BoltWireEncoder _p$writer) {
