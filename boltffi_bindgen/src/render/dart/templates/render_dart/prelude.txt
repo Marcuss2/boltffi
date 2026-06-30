@@ -118,6 +118,20 @@ sealed class $$BoltResult<Ok, Err extends Exception> {
       $$BoltResult$Err<Ok, Err>(:final value) => $$BoltResult.err(m(value)),
     };
   }
+
+  Ok? okValue() {
+    return switch (this) {
+      $$BoltResult$Ok<Ok, Err>(:final value) => value,
+      $$BoltResult$Err<Ok, Err>(:final value) => null,
+    };
+  }
+
+  Err? errValue() {
+    return switch (this) {
+      $$BoltResult$Ok<Ok, Err>(:final value) => null,
+      $$BoltResult$Err<Ok, Err>(:final value) => value,
+    };
+  }
 }
 
 final class $$BoltResult$Ok<Ok, Err extends Exception>
@@ -160,6 +174,39 @@ final class $$BoltBoolList extends $$collection.ListBase<bool> {
   @override
   void operator []=(int index, bool value) {
     _bytes[index] = value ? 1 : 0;
+  }
+}
+
+final class _$$BoltUtil {
+  static bool listEquals<T>(List<T> a, List<T> b, bool Function(T, T) cmp) {
+    if (identical(a, b)) return true;
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; ++i) {
+      if (!cmp(a[i], b[i])) return false;
+    }
+    return true;
+  }
+
+  static int listHash<T>(List<T> v, int Function(T) hasher) {
+    int result = 1;
+    for (final i in v) {
+        result = 31 * result + hasher(i);
+    }
+    return result;
+  }
+
+  static bool nullableCompare<T>(T? a, T? b, bool Function(T, T) comparer) {
+    if (identical(a, b)) return true;
+    if (a == null || b == null) return false;
+    return comparer(a, b);
+  }
+
+  static bool fallibleCompare<T, E extends Exception>($$BoltResult<T, E> a, $$BoltResult<T, E> b, bool Function(T, T) okCompare, bool Function(E, E) errCompare) {
+    return switch ((a, b)) {
+      ($$BoltResult$Ok(value: final okA), $$BoltResult$Ok(value: final okB)) => okCompare(okA, okB),
+      ($$BoltResult$Err(value: final errA), $$BoltResult$Err(value: final errB)) => errCompare(errA, errB),
+      _ => false,
+    };   
   }
 }
 
@@ -302,8 +349,9 @@ extension type _$$BoltWireEncoder(_$$BoltBufWriter writer) {
   @pragma('vm:prefer-inline')
   void writeInstant(DateTime v) {
     final micros = v.microsecondsSinceEpoch;
-    final seconds = micros ~/ 1000000;
-    final nanos = (micros % 1000000) * 1000;
+    final subsecondMicros = micros % 1000000;
+    final seconds = (micros - subsecondMicros) ~/ 1000000;
+    final nanos = subsecondMicros * 1000;
     writeI64(seconds);
     writeU32(nanos);
   }

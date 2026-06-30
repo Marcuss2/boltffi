@@ -589,4 +589,41 @@ impl DartType {
             _ => false,
         }
     }
+
+    pub fn hash_expr(&self, name: &str) -> String {
+        match self {
+            DartType::Void
+            | DartType::Bool
+            | DartType::Int(..)
+            | DartType::Double(..)
+            | DartType::String
+            | DartType::Closure(..)
+            | DartType::Record(..)
+            | DartType::Enum(..)
+            | DartType::Callback(..)
+            | DartType::Builtin(..)
+            | DartType::Custom(..) => format!("{}.hashCode", name),
+            DartType::Option(ty) => format!(
+                "({} == null ? null.hashCode : {})",
+                name,
+                ty.hash_expr(&format!("{}!", name))
+            ),
+            DartType::List(ty) => format!(
+                "_$$BoltUtil.listHash({}, (_p$item) => {})",
+                name,
+                ty.hash_expr("_p$item")
+            ),
+            DartType::Bytes => format!(
+                "_$$BoltUtil.listHash({}, (_p$item) => _p$item.hashCode)",
+                name
+            ),
+            DartType::Result { ok, err } => format!(
+                "switch ({}) {{ $$BoltResult$Ok(value: final _l$value) => {}, $$BoltResult$Err(value: final _l$value) => {} }}",
+                name,
+                ok.hash_expr("_l$value"),
+                err.hash_expr("_l$value")
+            ),
+            DartType::Class(_) => todo!(),
+        }
+    }
 }

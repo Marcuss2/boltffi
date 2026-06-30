@@ -106,6 +106,22 @@ final class {{ record.name }}{% if !record.interfaces.is_empty() %} implements {
 {%- endfor %}
   }
 {%- endmatch %}
+
+  @override
+  int get hashCode{% if !record.fields.is_empty()%} {
+    int _l$result = 1;
+{%- for field in record.fields %}
+    _l$result = 31 * _l$result + {{ field.ty.hash_expr(&field.name) }};
+{%- endfor %}
+    return _l$result;
+  }{% else %} => runtimeType.hashCode;{% endif %}
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is {{ record.name }}{% if !record.fields.is_empty() %} && {% for field in record.fields %}{{ field.field_cmp_expr("other") }}{% if !loop.last %} && {% endif %}{% endfor %}{% endif %};
+  }
 {% for func in record.constructors %}
 {%- filter indent(2, true) %}
 {%- include "callable.txt" -%}

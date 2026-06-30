@@ -12,14 +12,14 @@ pub enum DartEnumKind {
 #[derive(Debug, Clone)]
 pub struct DartEnumField {
     pub name: String,
-    pub dart_type: super::DartType,
+    pub ty: super::DartType,
     pub read_seq: ReadSeq,
     pub write_seq: WriteSeq,
 }
 
 impl DartEnumField {
     pub fn wire_decode_expr(&self, reader_name: &str) -> String {
-        emit::emit_reader_read(&self.read_seq, reader_name, self.dart_type.is_inner_void())
+        emit::emit_reader_read(&self.read_seq, reader_name, self.ty.is_inner_void())
     }
 
     pub fn wire_encode_expr(&self, writer_name: &str) -> String {
@@ -31,6 +31,10 @@ impl DartEnumField {
             &self.write_seq.size,
             ValueExpr::Named(self.name.to_string()),
         ))
+    }
+
+    pub fn field_cmp_expr(&self, other: &str) -> String {
+        emit::emit_cmp_expr(&self.name, &format!("{other}.{}", self.name), &self.ty)
     }
 }
 
@@ -63,10 +67,7 @@ impl DartEnum {
     }
 
     pub fn tag_writer_write(&self, variant: &DartEnumVariant, writer_name: &str) -> String {
-        format!(
-            "{writer_name}.writeI32({})",
-            variant.tag
-        )
+        format!("{writer_name}.writeI32({})", variant.tag)
     }
 
     pub fn tag_dart_type(&self) -> String {

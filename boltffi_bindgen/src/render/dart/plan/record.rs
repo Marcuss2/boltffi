@@ -27,6 +27,10 @@ impl DartRecordField {
             ValueExpr::Named(self.name.to_string()),
         ))
     }
+
+    pub fn field_cmp_expr(&self, other: &str) -> String {
+        emit::emit_cmp_expr(&self.name, &format!("{}.{}", other, self.name), &self.ty)
+    }
 }
 
 #[derive(Debug, Clone)]

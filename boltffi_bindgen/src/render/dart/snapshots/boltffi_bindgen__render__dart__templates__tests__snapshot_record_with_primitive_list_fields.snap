@@ -75,4 +75,28 @@ final class PrimitiveLists {
     (4 + (f64s.length * 8)) +
     (4 + (bools.length * 1));
 
+  @override
+  int get hashCode {
+    int _l$result = 1;
+    _l$result = 31 * _l$result + _$$BoltUtil.listHash(u8s, (_p$item) => _p$item.hashCode);
+    _l$result = 31 * _l$result + _$$BoltUtil.listHash(i8s, (_p$item) => _p$item.hashCode);
+    _l$result = 31 * _l$result + _$$BoltUtil.listHash(u16s, (_p$item) => _p$item.hashCode);
+    _l$result = 31 * _l$result + _$$BoltUtil.listHash(i16s, (_p$item) => _p$item.hashCode);
+    _l$result = 31 * _l$result + _$$BoltUtil.listHash(u32s, (_p$item) => _p$item.hashCode);
+    _l$result = 31 * _l$result + _$$BoltUtil.listHash(i32s, (_p$item) => _p$item.hashCode);
+    _l$result = 31 * _l$result + _$$BoltUtil.listHash(u64s, (_p$item) => _p$item.hashCode);
+    _l$result = 31 * _l$result + _$$BoltUtil.listHash(i64s, (_p$item) => _p$item.hashCode);
+    _l$result = 31 * _l$result + _$$BoltUtil.listHash(f32s, (_p$item) => _p$item.hashCode);
+    _l$result = 31 * _l$result + _$$BoltUtil.listHash(f64s, (_p$item) => _p$item.hashCode);
+    _l$result = 31 * _l$result + _$$BoltUtil.listHash(bools, (_p$item) => _p$item.hashCode);
+    return _l$result;
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is PrimitiveLists && _$$BoltUtil.listEquals(u8s, other.u8s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listEquals(i8s, other.i8s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listEquals(u16s, other.u16s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listEquals(i16s, other.i16s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listEquals(u32s, other.u32s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listEquals(i32s, other.i32s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listEquals(u64s, other.u64s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listEquals(i64s, other.i64s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listEquals(f32s, other.f32s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listEquals(f64s, other.f64s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listEquals(bools, other.bools, (_l$a, _l$b) => _l$a == _l$b);
+  }
+
 }

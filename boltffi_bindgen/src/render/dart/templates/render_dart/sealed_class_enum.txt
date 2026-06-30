@@ -11,14 +11,14 @@ sealed class {{ dart_enum.name }}{% if dart_enum.is_error %} implements Exceptio
 {%- if variant.fields.len() > 0 -%}
   {
 {%- for field in variant.fields %}
-    required {{ field.dart_type.dart_type() }} {{ field.name }},
+    required {{ field.ty.dart_type() }} {{ field.name }},
 {%- endfor %}
   }
 {%- endif -%}
   ) = {{ variant.class_name }};
 {% endfor %}
   factory {{ dart_enum.name }}._m$wireDecode(_$$BoltWireDecoder _p$reader) {
-    final tag = {{ dart_enum.tag_reader_read("_p$reader") }};
+    final tag = _p$reader.readI32();
 
     return switch (tag) {
 {%- for variant in dart_enum.variants %}
@@ -76,7 +76,7 @@ sealed class {{ dart_enum.name }}{% if dart_enum.is_error %} implements Exceptio
 {%- for variant in dart_enum.variants %}
 final class {{ variant.class_name }} extends {{ dart_enum.name }} {
   {%- for field in variant.fields %}
-  final {{ field.dart_type.dart_type() }} {{ field.name }};
+  final {{ field.ty.dart_type() }} {{ field.name }};
   {%- endfor %}
 
   const {{ variant.class_name }}({%- if variant.fields.len() > 0 %}{
@@ -84,6 +84,22 @@ final class {{ variant.class_name }} extends {{ dart_enum.name }} {
     required this.{{ field.name }},
 {%- endfor %}
   }{%- endif %}): super._();
+
+  @override
+  int get hashCode{% if !variant.fields.is_empty()%} {
+    int _l$result = 1;
+{%- for field in variant.fields %}
+    _l$result = 31 * _l$result + {{ field.ty.hash_expr(&field.name) }};
+{%- endfor %}
+    return _l$result;
+  }{% else %} => runtimeType.hashCode;{% endif %}
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is {{ variant.class_name }}{% if !variant.fields.is_empty() %} && {% for field in variant.fields %}{{ field.field_cmp_expr("other") }}{% if !loop.last %} && {% endif %}{% endfor %}{% endif %};
+  }
 
   @override
   String toString() {

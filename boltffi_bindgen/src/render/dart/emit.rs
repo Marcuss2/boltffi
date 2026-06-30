@@ -6,7 +6,7 @@ use crate::{
         TypeExpr, ValueExpr, VecLayout, WireSizeOwner, WriteOp, WriteSeq,
     },
     render::dart::{
-        DartLibrary, NamingConvention,
+        DartLibrary, DartType, NamingConvention,
         templates::{
             BuildHookTemplate, CallableTemplate, CallbackTemplate, ClassTemplate,
             CustomTypesTemplate, EnhancedEnumTemplate, ExternFunctionTemplate, PreludeTemplate,
@@ -707,5 +707,43 @@ pub fn emit_size_expr(size: &SizeExpr) -> String {
                 err_expr
             )
         }
+    }
+}
+
+pub fn emit_cmp_expr(expr_a: &str, expr_b: &str, expr_ty: &DartType) -> String {
+    match expr_ty {
+        DartType::Void
+        | DartType::Bool
+        | DartType::Int(..)
+        | DartType::Double(..)
+        | DartType::String
+        | DartType::Closure(..)
+        | DartType::Record(..)
+        | DartType::Enum(..)
+        | DartType::Callback(..)
+        | DartType::Builtin(..)
+        | DartType::Custom(..) => format!("{expr_a} == {expr_b}"),
+        DartType::Option(ty) => format!(
+            "_$$BoltUtil.nullableCompare({expr_a}, {expr_b}, (_l$a, _l$b) => {})",
+            emit_cmp_expr("_l$a", "_l$b", ty)
+        ),
+        DartType::List(ty) => format!(
+            "_$$BoltUtil.listEquals({}, {}, (_l$a, _l$b) => {})",
+            expr_a,
+            expr_b,
+            emit_cmp_expr("_l$a", "_l$b", ty)
+        ),
+        DartType::Bytes => format!(
+            "_$$BoltUtil.listEquals({}, {}, (_l$a, _l$b) => _l$a == _l$b)",
+            expr_a, expr_b
+        ),
+        DartType::Result { ok, err } => format!(
+            "_$$BoltUtil.fallibleCompare({}, {}, (_l$okA, _l$okB) => {}, (_l$errA, _l$errB) => {})",
+            expr_a,
+            expr_b,
+            emit_cmp_expr("_l$okA", "_l$okB", ok),
+            emit_cmp_expr("_l$errA", "_l$errB", err)
+        ),
+        DartType::Class(_) => todo!(),
     }
 }
