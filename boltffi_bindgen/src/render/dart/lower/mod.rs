@@ -227,7 +227,7 @@ impl<'a> DartLowerer<'a> {
         abi_call: &AbiCall,
         abi_params_start: usize,
         param_defs: &[ParamDef],
-        returns: &ReturnDef,
+        return_def: &ReturnDef,
     ) -> DartFunction {
         let mode = match &abi_call.mode {
             CallMode::Sync => DartFunctionMode::Sync,
@@ -241,20 +241,45 @@ impl<'a> DartLowerer<'a> {
                     ),
                     cancel_symbol: async_call.cancel.to_string(),
                     free_symbol: async_call.free.to_string(),
-
-                    returns: DartFunctionReturns {
-                        ty: DartReturnType::from_return_def(returns, &self.ffi.catalog),
-                        passing: match &async_call.result.transport {
-                            Some(async_transport) => DartFFIReturnsPassing::Passing(
-                                self.value_passing_from_transport(async_transport),
-                            ),
-                            None => DartFFIReturnsPassing::Void,
-                        },
-                        read_seq: async_call.result.decode_ops.clone(),
-                        write_seq: async_call.result.encode_ops.clone(),
-                    },
                 }))
             }
+        };
+
+        let returns = match &abi_call.mode {
+            CallMode::Sync => DartFunctionReturns {
+                ty: DartReturnType::from_return_def(return_def, &self.ffi.catalog),
+                passing: match return_def {
+                    // returned strings are always wire encoded
+                    ReturnDef::Value(TypeExpr::String) => {
+                        DartFFIReturnsPassing::Passing(DartFFIValuePassing::WireEncoded)
+                    }
+                    _ => match &abi_call.returns.transport {
+                        Some(transport) => DartFFIReturnsPassing::Passing(
+                            self.value_passing_from_transport(transport),
+                        ),
+                        None => DartFFIReturnsPassing::Void,
+                    },
+                },
+                read_seq: abi_call.returns.decode_ops.clone(),
+                write_seq: abi_call.returns.encode_ops.clone(),
+            },
+            CallMode::Async(async_call) => DartFunctionReturns {
+                ty: DartReturnType::from_return_def(return_def, &self.ffi.catalog),
+                passing: match return_def {
+                    // returned strings are always wire encoded
+                    ReturnDef::Value(TypeExpr::String) => {
+                        DartFFIReturnsPassing::Passing(DartFFIValuePassing::WireEncoded)
+                    }
+                    _ => match &async_call.result.transport {
+                        Some(async_transport) => DartFFIReturnsPassing::Passing(
+                            self.value_passing_from_transport(async_transport),
+                        ),
+                        None => DartFFIReturnsPassing::Void,
+                    },
+                },
+                read_seq: async_call.result.decode_ops.clone(),
+                write_seq: async_call.result.encode_ops.clone(),
+            },
         };
 
         DartFunction {
@@ -280,24 +305,8 @@ impl<'a> DartLowerer<'a> {
                 },
                 is_leaf: false,
             },
-            sig: DartFunctionSig::from_params_return_def(param_defs, returns, &self.ffi.catalog),
-            returns: DartFunctionReturns {
-                ty: DartReturnType::from_return_def(returns, &self.ffi.catalog),
-                passing: match returns {
-                    // returned strings are always wire encoded
-                    ReturnDef::Value(TypeExpr::String) => {
-                        DartFFIReturnsPassing::Passing(DartFFIValuePassing::WireEncoded)
-                    }
-                    _ => match &abi_call.returns.transport {
-                        Some(transport) => DartFFIReturnsPassing::Passing(
-                            self.value_passing_from_transport(transport),
-                        ),
-                        None => DartFFIReturnsPassing::Void,
-                    },
-                },
-                read_seq: abi_call.returns.decode_ops.clone(),
-                write_seq: abi_call.returns.encode_ops.clone(),
-            },
+            sig: DartFunctionSig::from_params_return_def(param_defs, return_def, &self.ffi.catalog),
+            returns,
         }
     }
 

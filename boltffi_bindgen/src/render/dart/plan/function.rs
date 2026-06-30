@@ -521,7 +521,6 @@ pub struct DartFFIAsyncFunctionDef {
     pub complete_ty: super::DartFFIType,
     pub cancel_symbol: String,
     pub free_symbol: String,
-    pub returns: DartFunctionReturns,
 }
 
 #[derive(Debug, Clone)]

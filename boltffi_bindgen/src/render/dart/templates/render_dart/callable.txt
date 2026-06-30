@@ -55,7 +55,7 @@ static {{ owner.name() }}{% if is_optional %}?{% endif %} {{ ctor_name }}
       if (_l$status.ptr.value != 0) {
         throw $$BoltException("Error completing future: ${_p$handle} with status code: ${_l$status.ptr.value}");
       }
-      {%- let returns = async_def.returns %}
+      {%- let returns = func.returns %}
       {%- let return_expr %}
       _l$res
       {% endlet %}
