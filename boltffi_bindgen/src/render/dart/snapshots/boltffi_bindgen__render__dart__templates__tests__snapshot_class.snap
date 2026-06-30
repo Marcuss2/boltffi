@@ -197,8 +197,8 @@ final class Person implements $$ffi.Finalizable {
   String getName() {
     final _l$resBuf = _f$boltffi_person_get_name(_handle);
     try {
-      final _l$resReader = _$$BoltBufReader.fromSpan(_l$resBuf.ptr, _l$resBuf.len);
-      return $$convert.utf8.decode(_l$resReader.readBytes(_l$resBuf.len, 0));
+      final _l$resWire = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(_l$resBuf.ptr, _l$resBuf.len));
+      return _l$resWire.readString();
     } finally {
       _f$boltffi_free_buf(_l$resBuf);
     }

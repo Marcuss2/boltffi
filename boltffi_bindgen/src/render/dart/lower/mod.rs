@@ -261,11 +261,17 @@ impl<'a> DartLowerer<'a> {
             sig: DartFunctionSig::from_params_return_def(param_defs, returns, &self.ffi.catalog),
             returns: DartFunctionReturns {
                 ty: DartReturnType::from_return_def(returns, &self.ffi.catalog),
-                passing: match &abi_call.returns.transport {
-                    Some(transport) => {
-                        DartFFIReturnsPassing::Passing(self.value_passing_from_transport(transport))
+                passing: match returns {
+                    // returned strings are always wire encoded
+                    ReturnDef::Value(TypeExpr::String) => {
+                        DartFFIReturnsPassing::Passing(DartFFIValuePassing::WireEncoded)
                     }
-                    None => DartFFIReturnsPassing::Void,
+                    _ => match &abi_call.returns.transport {
+                        Some(transport) => DartFFIReturnsPassing::Passing(
+                            self.value_passing_from_transport(transport),
+                        ),
+                        None => DartFFIReturnsPassing::Void,
+                    },
                 },
                 read_seq: abi_call.returns.decode_ops.clone(),
                 write_seq: abi_call.returns.encode_ops.clone(),
