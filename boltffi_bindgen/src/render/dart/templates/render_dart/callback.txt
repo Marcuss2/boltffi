@@ -98,7 +98,7 @@ final class {{ cb.impl_class_name }}Proxy implements {{ cb.class_name }} {
       }
       _l$completerCallbackCallable.close();
 {%- if let super::DartType::Enum(class) = method.returns.ty.inner %}
-      _l$completer.complete({{ class }}._m$fromValue(_p$out));
+      _l$completer.complete({{ class }}._m$fromDiscriminant(_p$out));
 {%- else %}
       _l$completer.complete(_p$out);
 {%- endif %}
@@ -155,7 +155,7 @@ _f${{ method.name }}(_handle.handle{% if !method.get_proxy_ffi_params().is_empty
 {%- match value %}
 {%- when super::DartFFIParamValue::Primitive with (primitive) %}
 {%- if let super::DartType::Enum(class) = method.returns.ty.inner %}
-    return {{ class }}._m$fromValue(_l$outPtr.ptr.value);
+    return {{ class }}._m$fromDiscriminant(_l$outPtr.ptr.value);
 {%- else %}
     return _l$outPtr.ptr.value;
 {%- endif %}

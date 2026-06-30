@@ -7,7 +7,7 @@
 {%- match value %}
 {%- when super::DartFFIParamValue::Primitive with (_) %}
 {%- if let super::DartType::Enum(class) = returns.ty.inner %}
-return {{ class }}._m$fromValue({{ return_expr | trim }});
+return {{ class }}._m$fromDiscriminant({{ return_expr | trim }});
 {%- else %}
 return {{ return_expr | trim }};
 {%- endif %}

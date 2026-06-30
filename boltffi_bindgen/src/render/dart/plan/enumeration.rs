@@ -42,7 +42,7 @@ impl DartEnumField {
 pub struct DartEnumVariant {
     pub name: String,
     pub class_name: String,
-    pub tag: i128,
+    pub discriminant: i128,
     pub fields: Vec<DartEnumField>,
 }
 
@@ -64,10 +64,6 @@ impl DartEnum {
             "{reader_name}.{}()",
             emit::primitive_read_method(self.tag_type)
         )
-    }
-
-    pub fn tag_writer_write(&self, variant: &DartEnumVariant, writer_name: &str) -> String {
-        format!("{writer_name}.writeI32({})", variant.tag)
     }
 
     pub fn tag_dart_type(&self) -> String {

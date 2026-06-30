@@ -18,17 +18,17 @@ sealed class {{ dart_enum.name }}{% if dart_enum.is_error %} implements Exceptio
   ) = {{ variant.class_name }};
 {% endfor %}
   factory {{ dart_enum.name }}._m$wireDecode(_$$BoltWireDecoder _p$reader) {
-    final tag = _p$reader.readI32();
+    final l$tag = _p$reader.readI32();
 
-    return switch (tag) {
+    return switch (l$tag) {
 {%- for variant in dart_enum.variants %}
-      {{ variant.tag }} => {{ dart_enum.name }}.{{ variant.name }}(
+      {{ loop.index0 }} => {{ dart_enum.name }}.{{ variant.name }}(
 {%- for field in variant.fields %}
         {{ field.name }}: {{ field.wire_decode_expr("_p$reader") }},
 {%- endfor %}
       ),
 {%- endfor %}
-      _ => throw ArgumentError('Unknown {{ dart_enum.name }} tag: $tag'),
+      _ => throw ArgumentError('Unknown {{ dart_enum.name }} tag: ${l$tag}'),
     };
   }
 
@@ -55,7 +55,7 @@ sealed class {{ dart_enum.name }}{% if dart_enum.is_error %} implements Exceptio
         :final {{ field.name }}{% if !loop.last %}, {% endif %}
 {%- endfor -%}
       ):
-        {{ dart_enum.tag_writer_write(variant, "_p$writer") }};
+        _p$writer.writeI32({{ loop.index0 }});
 {%- for field in variant.fields %}
         {{ field.wire_encode_expr("_p$writer")|indent(8)|trim }};
 {%- endfor %}

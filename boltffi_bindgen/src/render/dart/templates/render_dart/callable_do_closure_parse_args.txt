@@ -17,7 +17,7 @@ final l${{ cb_param.name }} = {{ cb_param.bytes_read_expr() }};
 {%- match value %}
 {%- when super::DartFFIParamValue::Primitive with (_) %}
 {%- if let super::DartType::Enum(class) = cb_param.ty %}
-final l${{ cb_param.name }} = {{ class }}._m$fromValue({{ cb_param.name }});
+final l${{ cb_param.name }} = {{ class }}._m$fromDiscriminant({{ cb_param.name }});
 {%- else %}
 final l${{ cb_param.name }} = {{ cb_param.name }};
 {%- endif %}

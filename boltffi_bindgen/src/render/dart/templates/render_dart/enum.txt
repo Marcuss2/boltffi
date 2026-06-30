@@ -7,31 +7,37 @@
 
 enum {{ dart_enum.name }}{% if dart_enum.is_error %} implements Exception{% endif %} {
 {%- for variant in dart_enum.variants %}
-  {{ variant.name }}._({{ variant.tag }}){%- if !loop.last %},{%- else %};{%- endif %}
+  {{ variant.name }}._({{ variant.discriminant }}){%- if !loop.last %},{%- else %};{%- endif %}
 {%- endfor %}
 
   final {{ dart_enum.tag_dart_type() }} value;
 
   const {{ dart_enum.name }}._(this.value);
 
-  factory {{ dart_enum.name }}._m$fromValue({{ dart_enum.tag_dart_type() }} value) {
-    return switch (value) {
+  factory {{ dart_enum.name }}._m$fromDiscriminant({{ dart_enum.tag_dart_type() }} p$discriminant) {
+    return switch (p$discriminant) {
 {%- for variant in dart_enum.variants %}
-      {{ variant.tag }} => {{ dart_enum.name }}.{{ variant.name }},
+      {{ variant.discriminant }} => {{ dart_enum.name }}.{{ variant.name }},
 {%- endfor %}
-      _ => throw ArgumentError('Unknown {{ dart_enum.name }} tag: $value'),
+      _ => throw ArgumentError('Unknown {{ dart_enum.name }} discriminant: ${p$discriminant}'),
     };
   }
 
   factory {{ dart_enum.name }}._m$wireDecode(_$$BoltWireDecoder _p$reader) {
-    return {{ dart_enum.name }}._m$fromValue(_p$reader.readI32());
+    final l$tag = _p$reader.readI32();
+    return switch (l$tag) {
+{%- for variant in dart_enum.variants %}
+      {{ loop.index0 }} => {{ dart_enum.name }}.{{ variant.name }},
+{%- endfor %}
+      _ => throw ArgumentError('Unknown {{ dart_enum.name }} tag: ${l$tag}'),
+    };
   }
 
   void _m$wireEncode(_$$BoltWireEncoder _p$writer) {
     switch (this) {
 {%- for variant in dart_enum.variants %}
       case {{ variant.name }}:
-        {{ dart_enum.tag_writer_write(variant, "_p$writer") }};
+        _p$writer.writeI32({{ loop.index0 }});
 {%- endfor %}
     }
   }

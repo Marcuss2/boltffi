@@ -38,7 +38,7 @@ impl<'a> super::DartLowerer<'a> {
         DartEnumVariant {
             name: variant_name,
             class_name: variant_class_name,
-            tag: variant.discriminant,
+            discriminant: variant.discriminant,
             fields,
         }
     }
