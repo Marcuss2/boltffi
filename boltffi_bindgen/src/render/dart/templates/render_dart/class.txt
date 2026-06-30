@@ -62,15 +62,15 @@ final class {{ class.name }} implements $$ffi.Finalizable {
 
     return ctx.stream((handle, batchSize, itemSize, controller) {
 {%- match stream.ffi_item_size %}
-{% when Some with (size) %}
+{%- when Some with (size) %}
       final l$buf = $$typed_data.Uint8List(batchSize * itemSize!);
       final l$count = _f${{ stream.pop_batch_fn.symbol }}(handle, l$buf.address.cast(), batchSize);
       if (l$count == 0) {
         return;
       }
       final l$bufReader = _$$BoltBufReader(l$buf);
-      controller.addStream(Stream.fromIterable({{ stream.item_array_read_expr("l$bufReader", "l$count") }}));
-{% when None %}
+      controller.addStream(Stream.fromIterable({{ stream.item_array_read_expr("l$bufReader", "l$count * itemSize") }}));
+{%- when None %}
       final l$buf = _f${{ stream.pop_batch_fn.symbol }}(handle, batchSize);
       if (l$buf.len == 0) {
         return;
@@ -98,15 +98,15 @@ final class {{ class.name }} implements $$ffi.Finalizable {
 
     final Stream<{{ stream.item_ty.dart_type() }}> stream = ctx.stream((handle, batchSize, itemSize, controller) {
 {%- match stream.ffi_item_size %}
-{% when Some with (size) %}
+{%- when Some with (size) %}
       final l$buf = $$typed_data.Uint8List(batchSize * itemSize!);
       final l$count = _f${{ stream.pop_batch_fn.symbol }}(handle, l$buf.address.cast(), batchSize);
       if (l$count == 0) {
         return;
       }
       final l$bufReader = _$$BoltBufReader(l$buf);
-      controller.addStream(Stream.fromIterable({{ stream.item_array_read_expr("l$bufReader", "l$count") }}));
-{% when None %}
+      controller.addStream(Stream.fromIterable({{ stream.item_array_read_expr("l$bufReader", "l$count * itemSize") }}));
+{%- when None %}
       final l$buf = _f${{ stream.pop_batch_fn.symbol }}(handle, batchSize);
       if (l$buf.len == 0) {
         return;
@@ -136,15 +136,15 @@ final class {{ class.name }} implements $$ffi.Finalizable {
 
     return ctx.batch((handle, batchSize, itemSize) {
 {%- match stream.ffi_item_size %}
-{% when Some with (size) %}
+{%- when Some with (size) %}
       final l$buf = $$typed_data.Uint8List(batchSize * itemSize!);
       final l$count = _f${{ stream.pop_batch_fn.symbol }}(handle, l$buf.address.cast(), batchSize);
       if (l$count == 0) {
         return [];
       }
       final l$bufReader = _$$BoltBufReader(l$buf);
-      return {{ stream.item_array_read_expr("l$bufReader", "l$count") }};
-{% when None %}
+      return {{ stream.item_array_read_expr("l$bufReader", "l$count * itemSize") }};
+{%- when None %}
       final l$buf = _f${{ stream.pop_batch_fn.symbol }}(handle, batchSize);
       if (l$buf.len == 0) {
         return;
