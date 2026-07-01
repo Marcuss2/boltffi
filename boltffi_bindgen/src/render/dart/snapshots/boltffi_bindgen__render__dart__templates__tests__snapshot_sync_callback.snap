@@ -2,6 +2,16 @@
 source: boltffi_bindgen/src/render/dart/templates.rs
 expression: template.render().unwrap()
 ---
+abstract interface class ICallback {
+  int mapU32(int n);
+
+  String mapStringRef(String s);
+
+  String mapString(String s);
+
+  void processBytes($$typed_data.Uint8List bytes);
+}
+
 final class _I$ICallbackVTable extends $$ffi.Struct {
   external $$ffi.Pointer<
     $$ffi.NativeFunction<
@@ -38,16 +48,6 @@ final class _I$ICallbackVTable extends $$ffi.Struct {
       $$ffi.Void Function($$ffi.Uint64, $$ffi.Pointer<$$ffi.Uint8>, $$ffi.UintPtr, $$ffi.Pointer<_$$BoltFFIStatus>)
     >
   > processBytes;
-}
-
-abstract interface class ICallback {
-  int mapU32(int n);
-
-  String mapStringRef(String s);
-
-  String mapString(String s);
-
-  void processBytes($$typed_data.Uint8List bytes);
 }
 
 final class _I$ICallbackProxy implements ICallback {
@@ -89,7 +89,7 @@ final class _I$ICallbackProxy implements ICallback {
     final _l$outStatus = _$$BoltCalloc.alloc<$$ffi.Int32>($$ffi.sizeOf<$$ffi.Int32>());
     final _l$outPtr = _$$BoltCalloc.alloc<$$ffi.Pointer<$$ffi.Uint8>>($$ffi.sizeOf<$$ffi.Pointer<$$ffi.Uint8>>());
     final _l$outLen = _$$BoltCalloc.alloc<$$ffi.UintPtr>($$ffi.sizeOf<$$ffi.UintPtr>());
-    _f$mapStringRef(_handle.handle, l$sStorage.ptr, l$sWire.len, _l$outPtr.ptr, _l$outLen.ptr,_l$outStatus.ptr.cast());
+    _f$mapStringRef(_handle.handle, l$sStorage.ptr, l$sWire.len, _l$outPtr.ptr, _l$outLen.ptr, _l$outStatus.ptr.cast());
     if (_l$outStatus.ptr.value != 0) {
       throw $$BoltException("ICallback.mapStringRef(...) foreign callback panicked");
     }
@@ -104,7 +104,7 @@ final class _I$ICallbackProxy implements ICallback {
     final _l$outStatus = _$$BoltCalloc.alloc<$$ffi.Int32>($$ffi.sizeOf<$$ffi.Int32>());
     final _l$outPtr = _$$BoltCalloc.alloc<$$ffi.Pointer<$$ffi.Uint8>>($$ffi.sizeOf<$$ffi.Pointer<$$ffi.Uint8>>());
     final _l$outLen = _$$BoltCalloc.alloc<$$ffi.UintPtr>($$ffi.sizeOf<$$ffi.UintPtr>());
-    _f$mapString(_handle.handle, l$sStorage.ptr, l$sWire.len, _l$outPtr.ptr, _l$outLen.ptr,_l$outStatus.ptr.cast());
+    _f$mapString(_handle.handle, l$sStorage.ptr, l$sWire.len, _l$outPtr.ptr, _l$outLen.ptr, _l$outStatus.ptr.cast());
     if (_l$outStatus.ptr.value != 0) {
       throw $$BoltException("ICallback.mapString(...) foreign callback panicked");
     }
@@ -125,124 +125,86 @@ _f$processBytes(_handle.handle, l$bytesStorage.ptr, l$bytesWire.len, _l$outStatu
 }
 
 final class _I$ICallback {
-  static final _$$BoltFFIHandleMap<ICallback> map = _$$BoltFFIHandleMap();
+  static final _$$BoltFFIHandleMap<ICallback> _k$map = _$$BoltFFIHandleMap();
 
-  static final _$$BoltCallocPtr<_I$ICallbackVTable> vtable = (() {
+  static final _$$BoltCallocPtr<_I$ICallbackVTable> _k$vtable = (() {
     final vtable = _$$BoltCalloc.alloc<_I$ICallbackVTable>(
       $$ffi.sizeOf<_I$ICallbackVTable>(),
     );
 
-    vtable.ptr
-      ..ref.free = $$ffi.Pointer.fromFunction(_I$ICallback.free)
-      ..ref.clone = $$ffi.Pointer.fromFunction(_I$ICallback.clone, 0)
-      ..ref.mapU32 = $$ffi.Pointer.fromFunction(_I$ICallback.mapU32)
-      ..ref.mapStringRef = $$ffi.Pointer.fromFunction(_I$ICallback.mapStringRef)
-      ..ref.mapString = $$ffi.Pointer.fromFunction(_I$ICallback.mapString)
-      ..ref.processBytes = $$ffi.Pointer.fromFunction(_I$ICallback.processBytes);
+    vtable.ptr.ref
+      ..free = $$ffi.Pointer.fromFunction(_I$ICallback.free)
+      ..clone = $$ffi.Pointer.fromFunction(_I$ICallback.clone, 0)
+      ..mapU32 = $$ffi.Pointer.fromFunction(_I$ICallback.mapU32)
+      ..mapStringRef = $$ffi.Pointer.fromFunction(_I$ICallback.mapStringRef)
+      ..mapString = $$ffi.Pointer.fromFunction(_I$ICallback.mapString)
+      ..processBytes = $$ffi.Pointer.fromFunction(_I$ICallback.processBytes);
 
     return vtable;
   })();
 
   static _$$BoltCallbackHandle createCallbackHandle(ICallback value) {
     return $$ffi.Struct.create()
-      ..handle = map.insert(value)
-      ..vtable = vtable.ptr.cast<$$ffi.Void>();
+      ..handle = _k$map.insert(value)
+      ..vtable = _k$vtable.ptr.cast<$$ffi.Void>();
   }
 
-  static void free(int handle) => map.remove(handle);
+  static void free(int handle) => _k$map.remove(handle);
 
-  static int clone(int handle) => map.clone(handle);
+  static int clone(int handle) => _k$map.clone(handle);
 
-  static ICallback wrap(_$$BoltCallbackHandle handle) => map.get(handle.handle) ?? _I$ICallbackProxy(handle);
+  static ICallback wrap(_$$BoltCallbackHandle handle) => _k$map.get(handle.handle) ?? _I$ICallbackProxy(handle);
 
   static void mapU32(int _p$handle, int n, $$ffi.Pointer<$$ffi.Uint32> _p$outPtr, $$ffi.Pointer<_$$BoltFFIStatus> _p$outStatus) {
-    final l$impl = map.get(_p$handle);
-
-    if (l$impl == null) {
+    final _l$impl = _k$map.get(_p$handle);
+    if (_l$impl == null) {
       throw $$BoltException("ICallback: invalid handle `${_p$handle}`");
     }
-
-    try {
-      final l$n = n;
-      final _l$res = l$impl.mapU32(l$n);
-      _p$outPtr.value = _l$res;
-      _p$outStatus.ref.code = 0;
-    } catch (e) {
-      _p$outPtr.value = 0;
-      _p$outStatus.ref.code = 1;
-    }
+    final l$n = n;
+    _p$outPtr.value = _l$impl.mapU32(l$n);
+    _p$outStatus.ref.code = 0;
   }
 
   static void mapStringRef(int _p$handle, $$ffi.Pointer<$$ffi.Uint8> sPtr, int sLen, $$ffi.Pointer<$$ffi.Pointer<$$ffi.Uint8>> _p$outPtr, $$ffi.Pointer<$$ffi.UintPtr> _p$outLen, $$ffi.Pointer<_$$BoltFFIStatus> _p$outStatus) {
-    final l$impl = map.get(_p$handle);
-
-    if (l$impl == null) {
+    final _l$impl = _k$map.get(_p$handle);
+    if (_l$impl == null) {
       throw $$BoltException("ICallback: invalid handle `${_p$handle}`");
     }
-
-    try {
-      final l$sWire = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(sPtr, sLen));
-      final l$s = l$sWire.readString();
-      final _l$res = l$impl.mapStringRef(l$s);
-      final _l$resStorage = _$$BoltCalloc.allocUnmanaged<$$ffi.Uint8>((4 + (_l$res.length * 3)));
-      final _l$resWire = _$$BoltWireEncoder(_$$BoltBufWriter.fromSpan(_l$resStorage.ptr, _l$resStorage.len));
-      _l$resWire.writeString(_l$res);
-      _p$outPtr.value = _l$resStorage.ptr;
-      _p$outLen.value = _l$resWire.len;
-      _p$outStatus.ref.code = 0;
-    } catch (e) {
-      final _l$eString = e.toString();
-      final _l$resStorage = _$$BoltCalloc.alloc<$$ffi.Uint8>(4 + _l$eString.length * 3);
-      final _l$resWire = _$$BoltWireEncoder(_$$BoltBufWriter.fromSpan(_l$resStorage.ptr, _l$resStorage.len));
-      _l$resWire.writeString(_l$eString);
-      _p$outPtr.value = _l$resStorage.ptr;
-      _p$outLen.value = _l$resWire.len;
-      _p$outStatus.ref.code = 1;
-    }
+    final l$sWire = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(sPtr, sLen));
+    final l$s = l$sWire.readString();
+    final _l$res = _l$impl.mapStringRef(l$s);
+    final _l$resStorage = _$$BoltCalloc.allocUnmanaged<$$ffi.Uint8>((4 + (_l$res.length * 3)));
+    final _l$resWire = _$$BoltWireEncoder(_$$BoltBufWriter.fromSpan(_l$resStorage.ptr, _l$resStorage.len));
+    _l$resWire.writeString(_l$res);
+    _p$outPtr.value = _l$resStorage.ptr;
+    _p$outLen.value = _l$resWire.len;
+    _p$outStatus.ref.code = 0;
   }
 
   static void mapString(int _p$handle, $$ffi.Pointer<$$ffi.Uint8> sPtr, int sLen, $$ffi.Pointer<$$ffi.Pointer<$$ffi.Uint8>> _p$outPtr, $$ffi.Pointer<$$ffi.UintPtr> _p$outLen, $$ffi.Pointer<_$$BoltFFIStatus> _p$outStatus) {
-    final l$impl = map.get(_p$handle);
-
-    if (l$impl == null) {
+    final _l$impl = _k$map.get(_p$handle);
+    if (_l$impl == null) {
       throw $$BoltException("ICallback: invalid handle `${_p$handle}`");
     }
-
-    try {
-      final l$sWire = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(sPtr, sLen));
-      final l$s = l$sWire.readString();
-      final _l$res = l$impl.mapString(l$s);
-      final _l$resStorage = _$$BoltCalloc.allocUnmanaged<$$ffi.Uint8>((4 + (_l$res.length * 3)));
-      final _l$resWire = _$$BoltWireEncoder(_$$BoltBufWriter.fromSpan(_l$resStorage.ptr, _l$resStorage.len));
-      _l$resWire.writeString(_l$res);
-      _p$outPtr.value = _l$resStorage.ptr;
-      _p$outLen.value = _l$resWire.len;
-      _p$outStatus.ref.code = 0;
-    } catch (e) {
-      final _l$eString = e.toString();
-      final _l$resStorage = _$$BoltCalloc.alloc<$$ffi.Uint8>(4 + _l$eString.length * 3);
-      final _l$resWire = _$$BoltWireEncoder(_$$BoltBufWriter.fromSpan(_l$resStorage.ptr, _l$resStorage.len));
-      _l$resWire.writeString(_l$eString);
-      _p$outPtr.value = _l$resStorage.ptr;
-      _p$outLen.value = _l$resWire.len;
-      _p$outStatus.ref.code = 1;
-    }
+    final l$sWire = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(sPtr, sLen));
+    final l$s = l$sWire.readString();
+    final _l$res = _l$impl.mapString(l$s);
+    final _l$resStorage = _$$BoltCalloc.allocUnmanaged<$$ffi.Uint8>((4 + (_l$res.length * 3)));
+    final _l$resWire = _$$BoltWireEncoder(_$$BoltBufWriter.fromSpan(_l$resStorage.ptr, _l$resStorage.len));
+    _l$resWire.writeString(_l$res);
+    _p$outPtr.value = _l$resStorage.ptr;
+    _p$outLen.value = _l$resWire.len;
+    _p$outStatus.ref.code = 0;
   }
 
   static void processBytes(int _p$handle, $$ffi.Pointer<$$ffi.Uint8> bytesPtr, int bytesLen, $$ffi.Pointer<_$$BoltFFIStatus> _p$outStatus) {
-    final l$impl = map.get(_p$handle);
-
-    if (l$impl == null) {
+    final _l$impl = _k$map.get(_p$handle);
+    if (_l$impl == null) {
       throw $$BoltException("ICallback: invalid handle `${_p$handle}`");
     }
-
-    try {
-      final l$bytesWire = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(bytesPtr, bytesLen));
-      final l$bytes = l$bytesWire.readUint8List();
-      final _l$res = l$impl.processBytes(l$bytes);
-      _p$outStatus.ref.code = 0;
-    } catch (e) {
-      _p$outStatus.ref.code = 1;
-    }
+    final l$bytesWire = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(bytesPtr, bytesLen));
+    final l$bytes = l$bytesWire.readUint8List();
+    _l$impl.processBytes(l$bytes);
+    _p$outStatus.ref.code = 0;
   }
 }
