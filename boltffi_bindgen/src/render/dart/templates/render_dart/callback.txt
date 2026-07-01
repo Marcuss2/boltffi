@@ -284,27 +284,42 @@ final class {{ cb.impl_class_name }} {
 {%- when _ %}
 {%- endmatch %}
     } catch (e) {
+{%- match method.returns.passing -%}
+{%- when super::DartFFIReturnsPassing::Void %}
 {%- if !method.is_async() %}
       _p$outStatus.ref.code = 1;
 {%- else %}
-{%- match method.returns.passing -%}
-{%- when super::DartFFIReturnsPassing::Void %}
       _p$callback.asFunction<void Function(int, int)>()(_p$asyncCtx, 1);
+{%- endif %}
 {%- when super::DartFFIReturnsPassing::Passing with (ret_passing) %}
 {%- match ret_passing %}
 {%- when super::DartFFIValuePassing::Value with (value)  %}
 {%- match value %}
 {%- when super::DartFFIParamValue::Primitive with (_) %}
+{%- if !method.is_async() %}
+      _p$outPtr.value = 0;
+      _p$outStatus.ref.code = 1;
+{%- else %}
       _p$callback.asFunction<void Function(int, int, int)>()(_p$asyncCtx, 0, 1);
+{%- endif %}
 {%- when _ %}
 {%- endmatch %}
 {%- when super::DartFFIValuePassing::WireEncoded %}
-      _p$callback.asFunction<void Function(int, $$ffi.Pointer<$$ffi.Uint8>, int, int)>()(_p$asyncCtx, $$ffi.nullptr, 0, 1);
+      final _l$eString = e.toString();
+      final {{ method.returns.storage_name() }} = _$$BoltCalloc.alloc<$$ffi.Uint8>(4 + _l$eString.length * 3);
+      final {{ method.returns.wire_name() }} = _$$BoltWireEncoder(_$$BoltBufWriter.fromSpan({{ method.returns.storage_name() }}.ptr, {{ method.returns.storage_name() }}.len));
+      {{ method.returns.wire_name() }}.writeString(_l$eString);
+{%- if !method.is_async() %}
+      _p$outPtr.value = {{ method.returns.storage_name() }}.ptr;
+      _p$outLen.value = {{ method.returns.wire_name() }}.len;
+      _p$outStatus.ref.code = 1;
+{%- else %}
+      _p$callback.asFunction<void Function(int, $$ffi.Pointer<$$ffi.Uint8>, int, int)>()(_p$asyncCtx, {{ method.returns.storage_name() }}.ptr, {{ method.returns.wire_name() }}.len, 1);
+{%- endif %}
 {%- when super::DartFFIValuePassing::ClassHandle with { class, .. } %}
 {%- when _ %}
 {%- endmatch %}
 {%- endmatch %}
-{%- endif %}
     }
   }
 {% endfor -%}

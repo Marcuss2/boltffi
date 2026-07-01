@@ -398,16 +398,9 @@ pub struct DartReturnType {
 
 impl DartReturnType {
     pub fn from_return_def(return_def: &ReturnDef, type_catalog: &TypeCatalog) -> Self {
-        let inner = match return_def {
-            ReturnDef::Void => DartType::Void,
-            ReturnDef::Value(ty) => DartType::from_type_expr(ty, type_catalog),
-            ReturnDef::Result { ok, err } => DartType::Result {
-                ok: Box::new(DartType::from_type_expr(ok, type_catalog)),
-                err: Box::new(DartType::from_type_expr(err, type_catalog)),
-            },
-        };
-
-        DartReturnType { inner }
+        DartReturnType {
+            inner: DartType::from_return_def(return_def, type_catalog),
+        }
     }
 
     pub fn dart_type(&self) -> String {
@@ -525,7 +518,7 @@ impl DartType {
         match return_def {
             ReturnDef::Void => DartType::Void,
             ReturnDef::Value(ty) => DartType::from_type_expr(ty, type_catalog),
-            ReturnDef::Result { ok, .. } => DartType::from_type_expr(ok, type_catalog),
+            ReturnDef::Result { ok, err } => DartType::from_result(ok, err, type_catalog),
         }
     }
 

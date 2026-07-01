@@ -21,9 +21,9 @@ final {{ param.callable_name() }} = $$ffi.NativeCallable<
 {%- for cb_sig_arg in cb_def.sig.args -%}
   {{ cb_sig_arg.ty.sub_type() }} {{ cb_sig_arg.name }}{% if !loop.last %}, {% endif %} 
 {%- endfor -%}
-  ) {
+) {
   {%- let cb_params = cb_def.params %}
-  {%- filter indent(4) %}{% include "callable_do_closure_parse_args.txt" %}{% endfilter %}
+  {%- filter indent(2) %}{% include "callable_do_closure_parse_args.txt" %}{% endfilter %}
   {%- let call_expr %}
   {{ param.name }}(
   {%- for cb_param in cb_def.params -%}
@@ -33,19 +33,19 @@ final {{ param.callable_name() }} = $$ffi.NativeCallable<
   {%- endlet %}
 {%- match cb_def.returns.passing -%}
 {%- when super::DartFFIReturnsPassing::Void %}
-  {{ call_expr | indent(4) | trim }};
+  {{ call_expr | indent(2) | trim }};
 {%- when super::DartFFIReturnsPassing::Passing with (ret_passing) %}
 {%- match ret_passing %}
 {%- when super::DartFFIValuePassing::Value with (value)  %}
 {%- match value %}
 {%- when super::DartFFIParamValue::Primitive with (_) %}
 {%- if let super::DartType::Enum(..) = cb_def.returns.ty.inner %}
-  return {{ call_expr | indent(4) | trim }}.value;
+  return {{ call_expr | indent(2) | trim }}.value;
 {%- else %}
-  return {{ call_expr | indent(4) | trim }};
+  return {{ call_expr | indent(2) | trim }};
 {%- endif %}
 {%- when super::DartFFIParamValue::Record with (_) %}
-  return {{ call_expr | indent(4) | trim }}._m$toStruct();
+  return {{ call_expr | indent(2) | trim }}._m$toStruct();
 {%- endmatch %}
 {%- when super::DartFFIValuePassing::WireEncoded %}
 {%- if let super::DartType::Result { ok, err } = cb_def.returns.ty.inner %}
@@ -58,11 +58,11 @@ final {{ param.callable_name() }} = $$ffi.NativeCallable<
     rethrow;
   }
 {%- else %}
-  final {{ cb_def.returns.res_name() }} = {{ call_expr | indent(4) | trim }};
+  final {{ cb_def.returns.res_name() }} = {{ call_expr | indent(2) | trim }};
 {%- endif %}
   final {{ cb_def.returns.storage_name() }} = _$$BoltCalloc.allocUnmanaged<$$ffi.Uint8>({{ cb_def.returns.wire_size_expr() }});
   final {{ cb_def.returns.wire_name() }} = _$$BoltWireEncoder(_$$BoltBufWriter.fromSpan({{ cb_def.returns.storage_name() }}.ptr, {{ cb_def.returns.storage_name() }}.len));
-  {{ cb_def.returns.wire_encode_expr() | trim | indent(4, false) }};
+  {{ cb_def.returns.wire_encode_expr() | trim | indent(2, false) }};
   return $$ffi.Struct.create<_$$BoltFFIBuf>()
     ..ptr = {{ cb_def.returns.storage_name() }}.ptr
     ..len = {{ cb_def.returns.wire_name() }}.len
@@ -74,7 +74,7 @@ final {{ param.callable_name() }} = $$ffi.NativeCallable<
 {%- endmatch %}
 {%- when _ %}
 {%- endmatch %}
-  }{% if let Some(exc_ret) = cb_def.exceptional_return() %}, exceptionalReturn: {{ exc_ret }}{% endif %});
-{{ param.callable_name() }}.keepIsolateAlive = false;
+}{% if let Some(exc_ret) = cb_def.exceptional_return() %}, exceptionalReturn: {{ exc_ret }}{% endif %})
+  ..keepIsolateAlive = false;
 {%- when _ -%}
 {%- endmatch -%}

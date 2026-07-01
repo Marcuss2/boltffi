@@ -8,7 +8,7 @@ use crate::{
     render::dart::{
         DartCallback, DartCallbackMethod, DartFFIFunctionParamSig, DartFFIFunctionSig,
         DartFFIIntType, DartFFIParamValue, DartFFIReturnsPassing, DartFFIType, DartFFIValuePassing,
-        DartFunctionReturns, DartFunctionSig, DartReturnType, NamingConvention,
+        DartFunctionReturns, DartFunctionSig, DartReturnType, NamingConvention, emit,
     },
 };
 
@@ -148,7 +148,11 @@ impl<'a> super::DartLowerer<'a> {
                     None => DartFFIReturnsPassing::Void,
                 },
                 read_seq: abi_meth.returns.decode_ops.clone(),
-                write_seq: abi_meth.returns.encode_ops.clone(),
+                write_seq: abi_meth
+                    .returns
+                    .encode_ops
+                    .clone()
+                    .map(emit::remap_write_seq),
             },
         }
     }

@@ -204,7 +204,11 @@ final class _I$ICallback {
       _l$resWire.writeString(_l$res);
       _p$callback.asFunction<void Function(int, $$ffi.Pointer<$$ffi.Uint8>, int, int)>()(_p$asyncCtx, _l$resStorage.ptr, _l$resWire.len, 0);
     } catch (e) {
-      _p$callback.asFunction<void Function(int, $$ffi.Pointer<$$ffi.Uint8>, int, int)>()(_p$asyncCtx, $$ffi.nullptr, 0, 1);
+      final _l$eString = e.toString();
+      final _l$resStorage = _$$BoltCalloc.alloc<$$ffi.Uint8>(4 + _l$eString.length * 3);
+      final _l$resWire = _$$BoltWireEncoder(_$$BoltBufWriter.fromSpan(_l$resStorage.ptr, _l$resStorage.len));
+      _l$resWire.writeString(_l$eString);
+      _p$callback.asFunction<void Function(int, $$ffi.Pointer<$$ffi.Uint8>, int, int)>()(_p$asyncCtx, _l$resStorage.ptr, _l$resWire.len, 1);
     }
   }
 
@@ -224,7 +228,11 @@ final class _I$ICallback {
       _l$resWire.writeString(_l$res);
       _p$callback.asFunction<void Function(int, $$ffi.Pointer<$$ffi.Uint8>, int, int)>()(_p$asyncCtx, _l$resStorage.ptr, _l$resWire.len, 0);
     } catch (e) {
-      _p$callback.asFunction<void Function(int, $$ffi.Pointer<$$ffi.Uint8>, int, int)>()(_p$asyncCtx, $$ffi.nullptr, 0, 1);
+      final _l$eString = e.toString();
+      final _l$resStorage = _$$BoltCalloc.alloc<$$ffi.Uint8>(4 + _l$eString.length * 3);
+      final _l$resWire = _$$BoltWireEncoder(_$$BoltBufWriter.fromSpan(_l$resStorage.ptr, _l$resStorage.len));
+      _l$resWire.writeString(_l$eString);
+      _p$callback.asFunction<void Function(int, $$ffi.Pointer<$$ffi.Uint8>, int, int)>()(_p$asyncCtx, _l$resStorage.ptr, _l$resWire.len, 1);
     }
   }
 

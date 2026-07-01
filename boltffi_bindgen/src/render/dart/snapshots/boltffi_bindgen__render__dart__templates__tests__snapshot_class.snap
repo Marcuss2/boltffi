@@ -238,7 +238,6 @@ final class Person implements $$ffi.Finalizable {
       }
       final l$bufReader = _$$BoltBufReader(l$buf);
       controller.addStream(Stream.fromIterable(l$bufReader.readFloat32List(l$count * itemSize, 0)));
-
     });
   }
 
@@ -261,7 +260,6 @@ final class Person implements $$ffi.Finalizable {
       }
       final l$bufReader = _$$BoltBufReader(l$buf);
       return l$bufReader.readFloat32List(l$count * itemSize, 0);
-
     });
   }
 
@@ -284,7 +282,6 @@ final class Person implements $$ffi.Finalizable {
       }
       final l$bufReader = _$$BoltBufReader(l$buf);
       controller.addStream(Stream.fromIterable(l$bufReader.readFloat32List(l$count * itemSize, 0)));
-
     });
 
     return stream.listen(cb);

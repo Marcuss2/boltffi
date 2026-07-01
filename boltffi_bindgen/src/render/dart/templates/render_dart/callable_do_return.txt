@@ -48,7 +48,7 @@ if (_l$handle == $$ffi.nullptr) {
 return {{ class }}._({% filter trim | indent(2) -%}{{ return_expr }}{% endfilter %});
 {%- endif %}
 {%- when super::DartFFIValuePassing::CallbackHandle with { class, .. } %}
-return _I${{ class }}Proxy({% filter trim | indent(2) -%}{{ return_expr }}{% endfilter %});
+return _I${{ class }}.wrap({% filter trim | indent(2) -%}{{ return_expr }}{% endfilter %});
 {%- when _ -%}
 {%- endmatch %}
 {%- when _ %}
