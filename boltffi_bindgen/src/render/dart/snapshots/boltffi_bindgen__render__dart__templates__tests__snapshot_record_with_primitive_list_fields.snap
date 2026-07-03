@@ -2,9 +2,6 @@
 source: boltffi_bindgen/src/render/dart/templates.rs
 expression: template.render().unwrap()
 ---
-
-
-
 final class PrimitiveLists {
   $$typed_data.Uint8List u8s;
   $$typed_data.Int8List i8s;
@@ -98,5 +95,4 @@ final class PrimitiveLists {
 
     return other is PrimitiveLists && _$$BoltUtil.listEquals(u8s, other.u8s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listEquals(i8s, other.i8s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listEquals(u16s, other.u16s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listEquals(i16s, other.i16s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listEquals(u32s, other.u32s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listEquals(i32s, other.i32s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listEquals(u64s, other.u64s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listEquals(i64s, other.i64s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listEquals(f32s, other.f32s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listEquals(f64s, other.f64s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listEquals(bools, other.bools, (_l$a, _l$b) => _l$a == _l$b);
   }
-
 }

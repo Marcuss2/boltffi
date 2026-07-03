@@ -57,6 +57,7 @@ impl<'a> super::DartLowerer<'a> {
             name: NamingConvention::property_name(field.name.as_str()),
             offset: 0,
             ty: DartType::from_type_expr(&field.type_expr, &self.ffi.catalog),
+            default_value: field.default.clone(),
             read_seq: record_field_read_seq,
             write_seq: record_field_write_seq,
         }

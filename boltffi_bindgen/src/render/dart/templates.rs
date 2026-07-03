@@ -86,9 +86,9 @@ mod tests {
     use crate::{
         ir::{
             self, CallbackId, CallbackKind, CallbackMethodDef, CallbackTraitDef, ClassDef, ClassId,
-            ConstructorDef, FfiContract, FieldDef, FieldName, MethodDef, MethodId, PackageInfo,
-            ParamDef, ParamName, ParamPassing, PrimitiveType, Receiver, RecordDef, RecordId,
-            ReturnDef, StreamDef, StreamId, StreamMode, TypeExpr,
+            ConstructorDef, DefaultValue, FfiContract, FieldDef, FieldName, MethodDef, MethodId,
+            PackageInfo, ParamDef, ParamName, ParamPassing, PrimitiveType, Receiver, RecordDef,
+            RecordId, ReturnDef, StreamDef, StreamId, StreamMode, TypeExpr,
         },
         render::dart::{DartLibrary, DartLowerer},
     };
@@ -389,6 +389,49 @@ mod tests {
                     type_expr: TypeExpr::Vec(Box::new(TypeExpr::Primitive(PrimitiveType::Bool))),
                     doc: None,
                     default: None,
+                },
+            ],
+            constructors: vec![],
+            methods: vec![],
+            doc: None,
+            deprecated: None,
+        });
+
+        let library = lower(&ffi);
+
+        let template = RecordTemplate {
+            record: &library.records[0],
+        };
+
+        insta::assert_snapshot!(template.render().unwrap());
+    }
+
+    #[test]
+    pub fn snapshot_record_with_default_fields() {
+        let mut ffi = empty_contract();
+
+        ffi.catalog.insert_record(RecordDef {
+            id: RecordId::new("Vector"),
+            is_repr_c: false,
+            is_error: false,
+            fields: vec![
+                FieldDef {
+                    name: FieldName::new("x"),
+                    type_expr: TypeExpr::Primitive(PrimitiveType::F64),
+                    doc: None,
+                    default: None,
+                },
+                FieldDef {
+                    name: FieldName::new("y"),
+                    type_expr: TypeExpr::Primitive(PrimitiveType::F64),
+                    doc: None,
+                    default: None,
+                },
+                FieldDef {
+                    name: FieldName::new("z"),
+                    type_expr: TypeExpr::Primitive(PrimitiveType::F64),
+                    doc: None,
+                    default: Some(DefaultValue::Float(0.0)),
                 },
             ],
             constructors: vec![],

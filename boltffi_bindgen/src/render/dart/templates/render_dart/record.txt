@@ -1,5 +1,5 @@
-{% match record.blittable_layout %}
-{% when None%}
+{%- match record.blittable_layout %}
+{%- when None -%}
 {%- when Some with (layout) %}
 final class {{ layout.struct_name }} extends $$ffi.Struct {
 {%- for field in layout.fields %}
@@ -10,18 +10,20 @@ final class {{ layout.struct_name }} extends $$ffi.Struct {
 {%- endmatch %}
 {% for func in record.constructors %}
 {% include "extern_function.txt" %}
-{%- endfor %}
+{% endfor -%}
 {%- for func in record.methods %}
 {% include "extern_function.txt" %}
-{%- endfor %}
-
+{% endfor -%}
 final class {{ record.name }}{% if !record.interfaces.is_empty() %} implements {% for interface in record.interfaces %}{{ interface.name() }}{% if !loop.last %}, {% endif %}{%- endfor %}{% endif %} {
 {%- for field in record.fields %}
   {{ field.ty.dart_type() }} {{ field.name }};
 {%- endfor %}
 
   {{ record.name }}({
-{%- for field in record.fields %}
+{%- for field in record.fields_with_defaults() %}
+    this.{{ field.name }}{% if let crate::ir::DefaultValue::Null = field.default_value.as_ref().unwrap() %}{% else %} = {{ field.dart_default_value() }}{% endif %},
+{%- endfor %}
+{%- for field in record.fields_without_defaults() %}
     required this.{{ field.name }},
 {%- endfor %}
   });
@@ -122,19 +124,14 @@ final class {{ record.name }}{% if !record.interfaces.is_empty() %} implements {
 
     return other is {{ record.name }}{% if !record.fields.is_empty() %} && {% for field in record.fields %}{{ field.field_cmp_expr("other") }}{% if !loop.last %} && {% endif %}{% endfor %}{% endif %};
   }
-{% for func in record.constructors %}
+{%- for func in record.constructors %}
 {%- filter indent(2, true) %}
-{%- include "callable.txt" -%}
+{% include "callable.txt" -%}
 {%- endfilter %}
 {% endfor -%}
 {%- for func in record.methods %}
 {%- filter indent(2, true) %}
-{%- include "callable.txt" -%}
+{% include "callable.txt" -%}
 {%- endfilter %}
 {%- endfor %}
 }
-{%- match record.blittable_layout %}
-{%- when None -%}
-{%- when Some with (layout) %}
-
-{%- endmatch %}

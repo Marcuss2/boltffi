@@ -1,6 +1,6 @@
 use crate::{
-    ir::{PrimitiveType, ReadSeq, ValueExpr, WriteSeq},
-    render::dart::emit,
+    ir::{DefaultValue, PrimitiveType, ReadSeq, ValueExpr, WriteSeq},
+    render::dart::{NamingConvention, emit},
 };
 
 #[derive(Debug, Clone)]
@@ -8,6 +8,7 @@ pub struct DartRecordField {
     pub name: String,
     pub offset: usize,
     pub ty: super::DartType,
+    pub default_value: Option<DefaultValue>,
     pub read_seq: ReadSeq,
     pub write_seq: WriteSeq,
 }
@@ -30,6 +31,34 @@ impl DartRecordField {
 
     pub fn field_cmp_expr(&self, other: &str) -> String {
         emit::emit_cmp_expr(&self.name, &format!("{}.{}", other, self.name), &self.ty)
+    }
+
+    pub fn dart_default_value(&self) -> String {
+        let default_value = self
+            .default_value
+            .as_ref()
+            .expect("Field with default value");
+        match default_value {
+            DefaultValue::Bool(b) => {
+                if *b {
+                    "true".to_string()
+                } else {
+                    "false".to_string()
+                }
+            }
+            DefaultValue::Integer(i) => i.to_string(),
+            DefaultValue::Float(f) => f.to_string(),
+            DefaultValue::String(s) => format!("{:?}", s),
+            DefaultValue::EnumVariant {
+                enum_name,
+                variant_name,
+            } => format!(
+                "{}.{}",
+                NamingConvention::class_name(enum_name),
+                NamingConvention::property_name(variant_name)
+            ),
+            DefaultValue::Null => "null".to_string(),
+        }
     }
 }
 
@@ -93,4 +122,14 @@ pub struct DartRecord {
     pub blittable_layout: Option<DartBlittableLayout>,
     pub constructors: Vec<super::DartFunction>,
     pub methods: Vec<super::DartFunction>,
+}
+
+impl DartRecord {
+    pub fn fields_with_defaults(&self) -> impl Iterator<Item = &DartRecordField> {
+        self.fields.iter().filter(|f| f.default_value.is_some())
+    }
+
+    pub fn fields_without_defaults(&self) -> impl Iterator<Item = &DartRecordField> {
+        self.fields.iter().filter(|f| f.default_value.is_none())
+    }
 }

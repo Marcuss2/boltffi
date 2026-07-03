@@ -3,24 +3,24 @@
 >(symbol: '{{ class.free_symbol }}', isLeaf: true)
 external void _f${{ class.free_symbol }}($$ffi.Pointer<$$ffi.Void> handle);
 {% for func in class.constructors %}
-{%- include "extern_function.txt" %}
+{% include "extern_function.txt" %}
 {%- endfor %}
 {%- for func in class.methods %}
-{%- include "extern_function.txt" %}
+{% include "extern_function.txt" %}
 {%- endfor %}
 {%- for stream in class.streams %}
 {% let ffi_def = stream.subscribe_fn %}
-{%- include "sync_extern_function.txt" %}
+{% include "sync_extern_function.txt" %}
 {% let ffi_def = stream.poll_fn %}
-{%- include "sync_extern_function.txt" %}
+{% include "sync_extern_function.txt" %}
 {% let ffi_def = stream.pop_batch_fn %}
-{%- include "sync_extern_function.txt" %}
+{% include "sync_extern_function.txt" %}
 {% let ffi_def = stream.wait_fn %}
-{%- include "sync_extern_function.txt" %}
+{% include "sync_extern_function.txt" %}
 {% let ffi_def = stream.unsubscribe_fn %}
-{%- include "sync_extern_function.txt" %}
+{% include "sync_extern_function.txt" %}
 {% let ffi_def = stream.free_fn %}
-{%- include "sync_extern_function.txt" %}
+{% include "sync_extern_function.txt" %}
 {%- endfor %}
 
 final class {{ class.name }} implements $$ffi.Finalizable {
@@ -35,12 +35,12 @@ final class {{ class.name }} implements $$ffi.Finalizable {
   }
 {% for func in class.constructors %}
 {%- filter indent(2, true) %}
-{%- include "callable.txt" -%}
+{%- include "callable.txt" %}
 {%- endfilter %}
 {% endfor -%}
 {%- for func in class.methods %}
 {%- filter indent(2, true) %}
-{%- include "callable.txt" -%}
+{%- include "callable.txt" %}
 {%- endfilter %}
 {% endfor -%}
 {% for stream in class.streams %}

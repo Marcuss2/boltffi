@@ -1,11 +1,11 @@
 {%- for func in dart_enum.constructors %}
-{%- include "extern_function.txt" %}
+{% include "extern_function.txt" %}
 {%- endfor %}
 {%- for func in dart_enum.methods %}
-{%- include "extern_function.txt" %}
+{% include "extern_function.txt" %}
 {%- endfor %}
 sealed class {{ dart_enum.name }}{% if dart_enum.is_error %} implements Exception{% endif %} {
-  const {{ dart_enum.name }}._();
+  const {{ dart_enum.name }}();
 {% for variant in dart_enum.variants %}
   factory {{ dart_enum.name }}.{{ variant.name }}(
 {%- if variant.fields.len() > 0 -%}
@@ -73,7 +73,7 @@ sealed class {{ dart_enum.name }}{% if dart_enum.is_error %} implements Exceptio
 {%- endfilter %}
 {% endfor -%}
 }
-{%- for variant in dart_enum.variants %}
+{% for variant in dart_enum.variants %}
 final class {{ variant.class_name }} extends {{ dart_enum.name }} {
   {%- for field in variant.fields %}
   final {{ field.ty.dart_type() }} {{ field.name }};
@@ -83,7 +83,7 @@ final class {{ variant.class_name }} extends {{ dart_enum.name }} {
 {%- for field in variant.fields %}
     required this.{{ field.name }},
 {%- endfor %}
-  }{%- endif %}): super._();
+  }{%- endif %});
 
   @override
   int get hashCode{% if !variant.fields.is_empty()%} {
