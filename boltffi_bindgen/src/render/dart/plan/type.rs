@@ -506,7 +506,7 @@ impl DartType {
             TypeExpr::Builtin(builtin_id) => DartType::Builtin(match builtin_id.as_str() {
                 "Duration" => String::from("Duration"),
                 "SystemTime" => String::from("DateTime"),
-                "Uuid" => String::from("(int highBits, int lowBits)"),
+                "Uuid" => String::from("$$BoltUUIDValue"),
                 "Url" => String::from("Uri"),
                 b => panic!("Unknown builtin: {b}"),
             }),

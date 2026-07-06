@@ -40,10 +40,10 @@ void main() {
           "case:builtins.system_time.should_construct_from_epoch_milliseconds",
     );
 
-    // TODO: uuids
-    // final uuid = '550e8400-e29b-41d4-a716-446655440000';
-    // expect(echoUuid(uuid), uuid);
-    // expect(uuidToString(uuid), '550e8400-e29b-41d4-a716-446655440000', reason: "case:builtins.uuid.should_format_canonical_string");
+    final uuidStr = '550e8400-e29b-41d4-a716-446655440000';
+    final uuidValue = $$BoltUUIDValue.parse(uuidStr);
+    expect(echoUuid(uuidValue), uuidValue);
+    expect(uuidToString(uuidValue), uuidStr, reason: "case:builtins.uuid.should_format_canonical_string");
 
     final uri = Uri.parse('https://example.com/path?q=boltffi');
     expect(
