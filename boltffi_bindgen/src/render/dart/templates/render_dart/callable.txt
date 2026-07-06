@@ -51,13 +51,12 @@ static {{ owner.name() }}{% if is_optional %}?{% endif %} {{ ctor_name }}
     pollFuture: _f${{ async_def.poll_symbol }},
     completeFuture: (_p$handle) {
       final _l$status = _$$BoltCalloc.alloc<$$ffi.Int32>($$ffi.sizeOf<$$ffi.Int32>());
-      final _l$res = _f${{ async_def.complete_symbol }}(_p$handle, _l$status.ptr.cast());
+      final _l$funcRes = _f${{ async_def.complete_symbol }}(_p$handle, _l$status.ptr.cast());
       if (_l$status.ptr.value != 0) {
         throw $$BoltException("Error completing future: ${_p$handle} with status code: ${_l$status.ptr.value}");
       }
-      {%- let returns = func.returns %}
-      {%- let return_expr %}
-      _l$res
+      {%- let return_binding %}
+      _l$funcRes
       {% endlet %}
       {% filter trim | indent(6, false) %}{% include "callable_do_return.txt" %}{% endfilter %}
     },
@@ -65,13 +64,13 @@ static {{ owner.name() }}{% if is_optional %}?{% endif %} {{ ctor_name }}
     cancelFuture: _f${{ async_def.cancel_symbol }},
   );
 {%- when super::DartFunctionMode::Sync %}
-  {%- let returns = func.returns %}
-  {%- let return_expr %}
-  _f${{ func.ffi_def.symbol }}(
+  final _l$funcRes = _f${{ func.ffi_def.symbol }}(
   {%- for ffi_param in func.get_ffi_params() -%}
     {{ ffi_param }}{% if !loop.last %}, {% endif %}
   {%- endfor -%}
-  )
+  );
+  {%- let return_binding %}
+  _l$funcRes
   {%- endlet %}
   {% filter trim | indent(2, false) %}{% include "callable_do_return.txt" %}{% endfilter %}
 {%- endmatch %}

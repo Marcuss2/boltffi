@@ -1,39 +1,41 @@
-{%- match returns.passing -%}
+{%- for param in func.params %}
+{%- if let Some(writeback_expr) = param.writeback_expr() %}
+{{ writeback_expr }};
+{%- endif %}
+{%- endfor %}
+{%- match func.returns.passing -%}
 {%- when super::DartFFIReturnsPassing::Void %}
-{{ return_expr | trim }};
 {%- when super::DartFFIReturnsPassing::Passing with (ret_passing) %}
 {%- match ret_passing %}
 {%- when super::DartFFIValuePassing::Value with (value)  %}
 {%- match value %}
 {%- when super::DartFFIParamValue::Primitive with (_) %}
-{%- if let super::DartType::Enum(class) = returns.ty.inner %}
-return {{ class }}._m$fromDiscriminant({{ return_expr | trim }});
+{%- if let super::DartType::Enum(class) = func.returns.ty.inner %}
+return {{ class }}._m$fromDiscriminant({{ return_binding | trim }});
 {%- else %}
-return {{ return_expr | trim }};
+return {{ return_binding | trim }};
 {%- endif %}
 {%- when super::DartFFIParamValue::Record with (class) %}
-return {{ class }}._m$fromStruct({{ return_expr | trim }});
+return {{ class }}._m$fromStruct({{ return_binding | trim }});
 {%- endmatch %}
 {%- when super::DartFFIValuePassing::WireEncoded %}
-final {{ returns.buf_name() }} = {% filter trim | indent(2, false) -%}{{ return_expr }}{% endfilter %};
-try {
-  final {{ returns.wire_name() }} = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan({{ returns.buf_name() }}.ptr, {{ returns.buf_name() }}.len));
-  return {{ returns.wire_decode_expr() | trim | indent(2, false) }}{% if returns.is_fallible() %}.okOrThrow(){% endif %};
-} finally {
-  _f$boltffi_free_buf({{ returns.buf_name() }});
-}
+final {{ func.returns.buf_name() }} = {{ return_binding | trim }};
+final {{ func.returns.wire_name() }} = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan({{ func.returns.buf_name() }}.ptr, {{ func.returns.buf_name() }}.len));
+final {{ func.returns.res_name() }} = {{ func.returns.wire_decode_expr() | trim }}{% if func.returns.is_fallible() %}.okOrThrow(){% endif %};
+_f$boltffi_free_buf({{ func.returns.buf_name() }});
+{%- if func.returns.ty.dart_type() == "void" %}
+{%- else %}
+return {{ func.returns.res_name() }};
+{%- endif %}
 {%- when super::DartFFIValuePassing::Bytes with (_) %}
-final {{ returns.buf_name() }} = {% filter trim | indent(2) -%}{{ return_expr }}{% endfilter %};
-try {
-  final {{ returns.reader_name() }} = _$$BoltBufReader.fromSpan({{ returns.buf_name() }}.ptr, {{ returns.buf_name() }}.len);
-  return {{ returns.bytes_read_expr() | trim | indent(4, false) }};
-} finally {
-  _f$boltffi_free_buf({{ returns.buf_name() }});
-}
+final {{ func.returns.buf_name() }} = {{ return_binding | trim }};
+final {{ func.returns.reader_name() }} = _$$BoltBufReader.fromSpan({{ func.returns.buf_name() }}.ptr, {{ func.returns.buf_name() }}.len);
+final {{ func.returns.res_name() }} = {{ func.returns.bytes_read_expr() | trim | indent(2) }};
+_f$boltffi_free_buf({{ func.returns.buf_name() }});
+return {{ func.returns.res_name() }};
 {%- when super::DartFFIValuePassing::ClassHandle with { class, nullable } %}
 {%- if nullable %}
-final _l$handle = {% filter trim | indent(2) -%}{{ return_expr }}{% endfilter %};
-if (_l$handle == $$ffi.nullptr) {
+if ({{ return_binding | trim }} == $$ffi.nullptr) {
   final _l$err = _$$BoltCalloc.alloc<_$$BoltFFIString>($$ffi.sizeOf<_$$BoltFFIString>());
   final _l$status = _f$boltffi_last_error_message(_l$err.ptr);
   if (_l$status.code == 0) {
@@ -42,13 +44,13 @@ if (_l$handle == $$ffi.nullptr) {
     throw $$BoltException("constructor failed. got nullptr");
   }
 } else {
-  return {{ class }}._(_l$handle);
+  return {{ class }}._({{ return_binding | trim }});
 }
 {%- else %}
-return {{ class }}._({% filter trim | indent(2) -%}{{ return_expr }}{% endfilter %});
+return {{ class }}._({{ return_binding | trim }});
 {%- endif %}
 {%- when super::DartFFIValuePassing::CallbackHandle with { class, .. } %}
-return _I${{ class }}.wrap({% filter trim | indent(2) -%}{{ return_expr }}{% endfilter %});
+return _I${{ class }}.wrap({{ return_binding | trim }});
 {%- when _ -%}
 {%- endmatch %}
 {%- when _ %}

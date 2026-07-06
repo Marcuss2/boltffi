@@ -1,6 +1,6 @@
 use crate::{
     ir::{ClassId, EnumId, PrimitiveType, ReadOp, ReadSeq, RecordId, ValueExpr, WriteSeq},
-    render::dart::emit,
+    render::dart::{DartFFIPrimitiveType, emit},
 };
 
 #[derive(Debug, Clone)]
@@ -120,12 +120,18 @@ pub struct DartFFIFunctionReturns {
 }
 
 #[derive(Debug, Clone)]
+pub enum DartFunctionParamWriteBack {
+    PrimitiveBytes(DartFFIPrimitiveType),
+}
+
+#[derive(Debug, Clone)]
 pub struct DartFunctionParam {
     pub name: String,
     pub ty: super::DartType,
     pub passing: DartFFIValuePassing,
     pub write_seq: Option<WriteSeq>,
     pub read_seq: Option<ReadSeq>,
+    pub writeback: Option<DartFunctionParamWriteBack>,
 }
 
 impl DartFunctionParam {
@@ -442,6 +448,28 @@ impl DartFunctionParam {
         }
     }
 
+    pub fn writeback_expr(&self) -> Option<String> {
+        let writeback = self.writeback.as_ref()?;
+
+        match writeback {
+            DartFunctionParamWriteBack::PrimitiveBytes(primitive) => {
+                let value_bytes = match primitive {
+                    DartFFIPrimitiveType::Bool => format!("{}._bytes", self.name),
+                    DartFFIPrimitiveType::Int(..) | DartFFIPrimitiveType::Float(..) => {
+                        self.name.clone()
+                    }
+                };
+
+                Some(format!(
+                    "{value_bytes}.setRange(0, {name}.length, {storage}.ptr.cast<{native_type}>().asTypedList({name}.length))",
+                    name = self.name,
+                    storage = self.storage_name(),
+                    native_type = primitive.native_type(),
+                ))
+            }
+        }
+    }
+
     pub fn get_ffi_param(&self) -> Vec<String> {
         match &self.passing {
             DartFFIValuePassing::Value(value) => match value {
@@ -464,8 +492,12 @@ impl DartFunctionParam {
                 ]
             }
             DartFFIValuePassing::List(value) => match value {
-                DartFFIParamValue::Primitive(..) => vec![
-                    format!("{}.ptr.cast()", self.storage_name()),
+                DartFFIParamValue::Primitive(primitive) => vec![
+                    format!(
+                        "{}.ptr.cast<{}>()",
+                        self.storage_name(),
+                        primitive.native_type()
+                    ),
                     format!("{}.length", self.name),
                 ],
                 DartFFIParamValue::Record(..) => vec![
@@ -475,8 +507,12 @@ impl DartFunctionParam {
             },
             DartFFIValuePassing::Bytes(bytes) => match bytes {
                 DartFFIParamBytes::Array(value) => match value {
-                    DartFFIParamValue::Primitive(..) => vec![
-                        format!("{}.ptr.cast()", self.storage_name()),
+                    DartFFIParamValue::Primitive(primitive) => vec![
+                        format!(
+                            "{}.ptr.cast<{}>()",
+                            self.storage_name(),
+                            primitive.native_type()
+                        ),
                         format!("{}.length", self.name),
                     ],
                     DartFFIParamValue::Record(_) => vec![

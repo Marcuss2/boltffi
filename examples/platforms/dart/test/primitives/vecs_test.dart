@@ -184,16 +184,13 @@ void main() {
       closeTo(8.0, 0.0001),
     );
 
-    // TODO: In place mutations
-    // final u64Buf = Uint64List.fromList([10, 20, 30]);
-    // incU64(u64Buf);
-    // expect(
-    //   u64Buf[0],
-    //   11,
-    //   reason: "case:primitives.vecs.u64.should_increment_first_value_in_place",
-    // );
-    // expect(u64Buf[1], 20);
-    // expect(u64Buf[2], 30);
+    final u64Buf = Uint64List.fromList([10, 20, 30]);
+    incU64(u64Buf);
+    expect(
+      u64Buf,
+      [11, 20, 30],
+      reason: "case:primitives.vecs.u64.should_increment_first_value_in_place",
+    );
 
     expect(
       incU64Value(41),

@@ -224,7 +224,8 @@ final class Person implements $$ffi.Finalizable {
     final l$nameStorage = _$$BoltCalloc.alloc<$$ffi.Uint8>(l$nameBytes.lengthInBytes);
     final l$nameWriter = _$$BoltBufWriter.fromSpan(l$nameStorage.ptr, l$nameStorage.len);
     l$nameWriter.writeBytes(l$nameBytes, 0);
-    return Person._(_f$boltffi_person_new(l$nameStorage.ptr, l$nameBytes.lengthInBytes, age));
+    final _l$funcRes = _f$boltffi_person_new(l$nameStorage.ptr, l$nameBytes.lengthInBytes, age);
+    return Person._(_l$funcRes);
   }
 
   static Person newWithDefaultAge(String name) {
@@ -232,27 +233,26 @@ final class Person implements $$ffi.Finalizable {
     final l$nameStorage = _$$BoltCalloc.alloc<$$ffi.Uint8>(l$nameBytes.lengthInBytes);
     final l$nameWriter = _$$BoltBufWriter.fromSpan(l$nameStorage.ptr, l$nameStorage.len);
     l$nameWriter.writeBytes(l$nameBytes, 0);
-    return Person._(_f$boltffi_person_new_with_default_age(l$nameStorage.ptr, l$nameBytes.lengthInBytes));
+    final _l$funcRes = _f$boltffi_person_new_with_default_age(l$nameStorage.ptr, l$nameBytes.lengthInBytes);
+    return Person._(_l$funcRes);
   }
 
   String getName() {
-    final _l$resBuf = _f$boltffi_person_get_name(_handle);
-    try {
-      final _l$resWire = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(_l$resBuf.ptr, _l$resBuf.len));
-      return _l$resWire.readString();
-    } finally {
-      _f$boltffi_free_buf(_l$resBuf);
-    }
+    final _l$funcRes = _f$boltffi_person_get_name(_handle);
+    final _l$resBuf = _l$funcRes;
+    final _l$resWire = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(_l$resBuf.ptr, _l$resBuf.len));
+    final _l$res = _l$resWire.readString();
+    _f$boltffi_free_buf(_l$resBuf);
+    return _l$res;
   }
 
   static String getDefaultName() {
-    final _l$resBuf = _f$boltffi_person_get_default_name();
-    try {
-      final _l$resWire = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(_l$resBuf.ptr, _l$resBuf.len));
-      return _l$resWire.readString();
-    } finally {
-      _f$boltffi_free_buf(_l$resBuf);
-    }
+    final _l$funcRes = _f$boltffi_person_get_default_name();
+    final _l$resBuf = _l$funcRes;
+    final _l$resWire = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(_l$resBuf.ptr, _l$resBuf.len));
+    final _l$res = _l$resWire.readString();
+    _f$boltffi_free_buf(_l$resBuf);
+    return _l$res;
   }
 
   Stream<double> temperatureEventAsync() {

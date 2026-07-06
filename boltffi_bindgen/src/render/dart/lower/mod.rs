@@ -8,10 +8,11 @@ use crate::{
     },
     render::dart::{
         DartConstructorKind, DartFFIClosureDef, DartFFIFunctionDef, DartFFIFunctionParamSig,
-        DartFFIFunctionSig, DartFFIReturnsPassing, DartFFIType, DartFFIValuePassing, DartFunction,
-        DartFunctionCallOwner, DartFunctionMode, DartFunctionParam, DartFunctionReturns,
-        DartFunctionSig, DartFunctionType, DartLibrary, DartMethodReceiver, DartReturnType,
-        DartType, NamingConvention, emit,
+        DartFFIFunctionSig, DartFFIParamBytes, DartFFIParamValue, DartFFIReturnsPassing,
+        DartFFIType, DartFFIValuePassing, DartFunction, DartFunctionCallOwner, DartFunctionMode,
+        DartFunctionParam, DartFunctionParamWriteBack, DartFunctionReturns, DartFunctionSig,
+        DartFunctionType, DartLibrary, DartMethodReceiver, DartReturnType, DartType,
+        NamingConvention, emit,
     },
 };
 
@@ -183,6 +184,15 @@ impl<'a> DartLowerer<'a> {
     ) -> DartFunctionParam {
         let passing = self.value_passing_from_param_contract_transport(contract, transport);
         let ty = DartType::from_type_expr(&param.type_expr, &self.ffi.catalog);
+        let writeback = match contract.passing_strategy() {
+            ParamPassingStrategy::ByValue | ParamPassingStrategy::SharedRef => None,
+            ParamPassingStrategy::MutableRef => match passing {
+                DartFFIValuePassing::Bytes(DartFFIParamBytes::Array(
+                    DartFFIParamValue::Primitive(primitive),
+                )) => Some(DartFunctionParamWriteBack::PrimitiveBytes(primitive)),
+                _ => None,
+            },
+        };
 
         DartFunctionParam {
             name: NamingConvention::param_name(param.name.as_str()),
@@ -190,6 +200,7 @@ impl<'a> DartLowerer<'a> {
             write_seq: encode_ops.clone().map(emit::remap_write_seq),
             read_seq: decode_ops.clone(),
             ty,
+            writeback,
         }
     }
 
