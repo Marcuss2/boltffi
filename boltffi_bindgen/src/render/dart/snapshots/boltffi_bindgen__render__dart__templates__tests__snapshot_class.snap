@@ -221,25 +221,26 @@ final class Person implements $$ffi.Finalizable {
 
   factory Person(String name, int age) {
     final l$nameBytes = $$convert.utf8.encode(name);
-    final l$nameStorage = _$$BoltCalloc.alloc<$$ffi.Uint8>(l$nameBytes.lengthInBytes);
+    final l$nameStorage = _$$BoltStoragePool.acquireStorage(l$nameBytes.lengthInBytes);
     final l$nameWriter = _$$BoltBufWriter.fromSpan(l$nameStorage.ptr, l$nameStorage.len);
     l$nameWriter.writeBytes(l$nameBytes, 0);
-    final _l$funcRes = _f$boltffi_person_new(l$nameStorage.ptr, l$nameBytes.lengthInBytes, age);
-    return Person._(_l$funcRes);
+    final _l$res = _f$boltffi_person_new(l$nameStorage.ptr, l$nameBytes.lengthInBytes, age);
+    _$$BoltStoragePool.releaseStorage(l$nameStorage);
+    return Person._(_l$res);
   }
 
   static Person newWithDefaultAge(String name) {
     final l$nameBytes = $$convert.utf8.encode(name);
-    final l$nameStorage = _$$BoltCalloc.alloc<$$ffi.Uint8>(l$nameBytes.lengthInBytes);
+    final l$nameStorage = _$$BoltStoragePool.acquireStorage(l$nameBytes.lengthInBytes);
     final l$nameWriter = _$$BoltBufWriter.fromSpan(l$nameStorage.ptr, l$nameStorage.len);
     l$nameWriter.writeBytes(l$nameBytes, 0);
-    final _l$funcRes = _f$boltffi_person_new_with_default_age(l$nameStorage.ptr, l$nameBytes.lengthInBytes);
-    return Person._(_l$funcRes);
+    final _l$res = _f$boltffi_person_new_with_default_age(l$nameStorage.ptr, l$nameBytes.lengthInBytes);
+    _$$BoltStoragePool.releaseStorage(l$nameStorage);
+    return Person._(_l$res);
   }
 
   String getName() {
-    final _l$funcRes = _f$boltffi_person_get_name(_handle);
-    final _l$resBuf = _l$funcRes;
+    final _l$resBuf = _f$boltffi_person_get_name(_handle);
     final _l$resWire = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(_l$resBuf.ptr, _l$resBuf.len));
     final _l$res = _l$resWire.readString();
     _f$boltffi_free_buf(_l$resBuf);
@@ -247,8 +248,7 @@ final class Person implements $$ffi.Finalizable {
   }
 
   static String getDefaultName() {
-    final _l$funcRes = _f$boltffi_person_get_default_name();
-    final _l$resBuf = _l$funcRes;
+    final _l$resBuf = _f$boltffi_person_get_default_name();
     final _l$resWire = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(_l$resBuf.ptr, _l$resBuf.len));
     final _l$res = _l$resWire.readString();
     _f$boltffi_free_buf(_l$resBuf);

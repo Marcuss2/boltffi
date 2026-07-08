@@ -73,8 +73,8 @@ final class _I$ICallbackProxy implements ICallback {
 
   @override
   int mapU32(int n) {
-    final _l$outStatus = _$$BoltCalloc.alloc<$$ffi.Int32>($$ffi.sizeOf<$$ffi.Int32>());
-    final _l$outPtr = _$$BoltCalloc.alloc<$$ffi.Uint32>($$ffi.sizeOf<$$ffi.Uint32>());
+    final _l$outStatus = _$$BoltCallocPtr<$$ffi.Int32>.alloc($$ffi.sizeOf<$$ffi.Int32>());
+    final _l$outPtr = _$$BoltCallocPtr<$$ffi.Uint32>.alloc($$ffi.sizeOf<$$ffi.Uint32>());
     _f$mapU32(_handle.handle, n, _l$outPtr.ptr, _l$outStatus.ptr.cast());
     if (_l$outStatus.ptr.value != 0) {
       throw $$BoltException("ICallback.mapU32(...) foreign callback panicked");
@@ -83,13 +83,14 @@ final class _I$ICallbackProxy implements ICallback {
   }
   @override
   String mapStringRef(String s) {
-    final l$sStorage = _$$BoltCalloc.alloc<$$ffi.Uint8>((4 + (s.length * 3)));
+    final l$sStorage = _$$BoltStoragePool.acquireStorage((4 + (s.length * 3)));
     final l$sWire = _$$BoltWireEncoder(_$$BoltBufWriter.fromSpan(l$sStorage.ptr, l$sStorage.len));
     l$sWire.writeString(s);
-    final _l$outStatus = _$$BoltCalloc.alloc<$$ffi.Int32>($$ffi.sizeOf<$$ffi.Int32>());
-    final _l$outPtr = _$$BoltCalloc.alloc<$$ffi.Pointer<$$ffi.Uint8>>($$ffi.sizeOf<$$ffi.Pointer<$$ffi.Uint8>>());
-    final _l$outLen = _$$BoltCalloc.alloc<$$ffi.UintPtr>($$ffi.sizeOf<$$ffi.UintPtr>());
+    final _l$outStatus = _$$BoltCallocPtr<$$ffi.Int32>.alloc($$ffi.sizeOf<$$ffi.Int32>());
+    final _l$outPtr = _$$BoltCallocPtr<$$ffi.Pointer<$$ffi.Uint8>>.alloc($$ffi.sizeOf<$$ffi.Pointer<$$ffi.Uint8>>());
+    final _l$outLen = _$$BoltCallocPtr<$$ffi.UintPtr>.alloc($$ffi.sizeOf<$$ffi.UintPtr>());
     _f$mapStringRef(_handle.handle, l$sStorage.ptr, l$sWire.len, _l$outPtr.ptr, _l$outLen.ptr, _l$outStatus.ptr.cast());
+    _$$BoltStoragePool.releaseStorage(l$sStorage);
     if (_l$outStatus.ptr.value != 0) {
       throw $$BoltException("ICallback.mapStringRef(...) foreign callback panicked");
     }
@@ -98,13 +99,14 @@ final class _I$ICallbackProxy implements ICallback {
   }
   @override
   String mapString(String s) {
-    final l$sStorage = _$$BoltCalloc.alloc<$$ffi.Uint8>((4 + (s.length * 3)));
+    final l$sStorage = _$$BoltStoragePool.acquireStorage((4 + (s.length * 3)));
     final l$sWire = _$$BoltWireEncoder(_$$BoltBufWriter.fromSpan(l$sStorage.ptr, l$sStorage.len));
     l$sWire.writeString(s);
-    final _l$outStatus = _$$BoltCalloc.alloc<$$ffi.Int32>($$ffi.sizeOf<$$ffi.Int32>());
-    final _l$outPtr = _$$BoltCalloc.alloc<$$ffi.Pointer<$$ffi.Uint8>>($$ffi.sizeOf<$$ffi.Pointer<$$ffi.Uint8>>());
-    final _l$outLen = _$$BoltCalloc.alloc<$$ffi.UintPtr>($$ffi.sizeOf<$$ffi.UintPtr>());
+    final _l$outStatus = _$$BoltCallocPtr<$$ffi.Int32>.alloc($$ffi.sizeOf<$$ffi.Int32>());
+    final _l$outPtr = _$$BoltCallocPtr<$$ffi.Pointer<$$ffi.Uint8>>.alloc($$ffi.sizeOf<$$ffi.Pointer<$$ffi.Uint8>>());
+    final _l$outLen = _$$BoltCallocPtr<$$ffi.UintPtr>.alloc($$ffi.sizeOf<$$ffi.UintPtr>());
     _f$mapString(_handle.handle, l$sStorage.ptr, l$sWire.len, _l$outPtr.ptr, _l$outLen.ptr, _l$outStatus.ptr.cast());
+    _$$BoltStoragePool.releaseStorage(l$sStorage);
     if (_l$outStatus.ptr.value != 0) {
       throw $$BoltException("ICallback.mapString(...) foreign callback panicked");
     }
@@ -113,11 +115,12 @@ final class _I$ICallbackProxy implements ICallback {
   }
   @override
   void processBytes($$typed_data.Uint8List bytes) {
-    final l$bytesStorage = _$$BoltCalloc.alloc<$$ffi.Uint8>((4 + bytes.length));
+    final l$bytesStorage = _$$BoltStoragePool.acquireStorage((4 + bytes.length));
     final l$bytesWire = _$$BoltWireEncoder(_$$BoltBufWriter.fromSpan(l$bytesStorage.ptr, l$bytesStorage.len));
     l$bytesWire.writeBytes(bytes);
-    final _l$outStatus = _$$BoltCalloc.alloc<$$ffi.Int32>($$ffi.sizeOf<$$ffi.Int32>());
+    final _l$outStatus = _$$BoltCallocPtr<$$ffi.Int32>.alloc($$ffi.sizeOf<$$ffi.Int32>());
 _f$processBytes(_handle.handle, l$bytesStorage.ptr, l$bytesWire.len, _l$outStatus.ptr.cast());
+    _$$BoltStoragePool.releaseStorage(l$bytesStorage);
     if (_l$outStatus.ptr.value != 0) {
       throw $$BoltException("ICallback.processBytes(...) foreign callback panicked");
     }
@@ -128,7 +131,7 @@ final class _I$ICallback {
   static final _$$BoltFFIHandleMap<ICallback> _k$map = _$$BoltFFIHandleMap();
 
   static final _$$BoltCallocPtr<_I$ICallbackVTable> _k$vtable = (() {
-    final vtable = _$$BoltCalloc.alloc<_I$ICallbackVTable>(
+    final vtable = _$$BoltCallocPtr<_I$ICallbackVTable>.alloc(
       $$ffi.sizeOf<_I$ICallbackVTable>(),
     );
 
@@ -173,7 +176,7 @@ final class _I$ICallback {
     final l$sWire = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(sPtr, sLen));
     final l$s = l$sWire.readString();
     final _l$res = _l$impl.mapStringRef(l$s);
-    final _l$resStorage = _$$BoltCalloc.allocUnmanaged<$$ffi.Uint8>((4 + (_l$res.length * 3)));
+    final _l$resStorage = _$$BoltCallocPtr<$$ffi.Uint8>.allocUnmanaged((4 + (_l$res.length * 3)));
     final _l$resWire = _$$BoltWireEncoder(_$$BoltBufWriter.fromSpan(_l$resStorage.ptr, _l$resStorage.len));
     _l$resWire.writeString(_l$res);
     _p$outPtr.value = _l$resStorage.ptr;
@@ -189,7 +192,7 @@ final class _I$ICallback {
     final l$sWire = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(sPtr, sLen));
     final l$s = l$sWire.readString();
     final _l$res = _l$impl.mapString(l$s);
-    final _l$resStorage = _$$BoltCalloc.allocUnmanaged<$$ffi.Uint8>((4 + (_l$res.length * 3)));
+    final _l$resStorage = _$$BoltCallocPtr<$$ffi.Uint8>.allocUnmanaged((4 + (_l$res.length * 3)));
     final _l$resWire = _$$BoltWireEncoder(_$$BoltBufWriter.fromSpan(_l$resStorage.ptr, _l$resStorage.len));
     _l$resWire.writeString(_l$res);
     _p$outPtr.value = _l$resStorage.ptr;

@@ -61,18 +61,15 @@ final class {{ cb.impl_class_name }}Proxy implements {{ cb.class_name }} {
 {%- for arg in method.sig.args -%}
     {{ arg.ty.dart_type() }} {{ arg.name }}{% if !loop.last %}, {% endif %}
 {%- endfor -%}
-  ){% if method.is_async() %} async{% endif %} {
+  ) {
 {%- if method.is_async() %}
     final _l$completer = $$async.Completer<{{ method.returns.ty.dart_type() }}>();
 {%- endif %}
 {%- for param in method.params %}
-{%- filter indent(4) %}{% include "callable_do_function_args_storage.txt" %}{%- endfilter %}
+{%- filter indent(4) %}{% include "callable_do_function_arg_parse.txt" %}{%- endfilter %}
 {%- endfor %}
 {%- for param in method.params %}
-{%- filter indent(4) %}{% include "callable_do_function_parse_args.txt" %}{%- endfilter %}
-{%- endfor %}
-{%- for param in method.params %}
-{%- filter indent(4) %}{% include "callable_do_function_args_write.txt" %}{%- endfilter %}
+{%- filter indent(4) %}{% include "callable_do_function_arg_write.txt" %}{%- endfilter %}
 {%- endfor %}
 {%- if method.is_async() %}
 {%- match method.returns.passing %}
@@ -90,7 +87,7 @@ final class {{ cb.impl_class_name }}Proxy implements {{ cb.class_name }} {
 {%- when super::DartFFIValuePassing::Value with (value)  %}
 {%- match value %}
 {%- when super::DartFFIParamValue::Primitive with (primitive) %}
-    final _l$outPtr = _$$BoltCalloc.alloc<{{ primitive.native_type() }}>($$ffi.sizeOf<{{ primitive.native_type() }}>());
+    final _l$outPtr = _$$BoltCallocPtr<{{ primitive.native_type() }}>.alloc($$ffi.sizeOf<{{ primitive.native_type() }}>());
     late final $$ffi.NativeCallable<$$ffi.Void Function($$ffi.Uint64, {{ primitive.native_type() }}, $$ffi.Int32)> _l$completerCallbackCallable;
     _l$completerCallbackCallable = $$ffi.NativeCallable.listener((int _p$data, {{ primitive.sub_type() }} _p$out, int _p$outStatus) {
       _l$completerCallbackCallable.close();
@@ -120,9 +117,12 @@ final class {{ cb.impl_class_name }}Proxy implements {{ cb.class_name }} {
 {%- when _ -%}
 {%- endmatch %}
     _f${{ method.name }}(_handle.handle{% if !method.get_proxy_ffi_params().is_empty() %}{% for ffi_param in method.get_proxy_ffi_params() %}, {{ ffi_param }}{% endfor %}{% endif %}, _l$completerCallbackCallable.nativeFunction, 0);
+{%- for param in method.params %}
+{%- filter indent(4) %}{% include "callable_do_function_arg_storage_release.txt" %}{%- endfilter %}
+{%- endfor %}
     return _l$completer.future;
 {%- else %}
-    final _l$outStatus = _$$BoltCalloc.alloc<$$ffi.Int32>($$ffi.sizeOf<$$ffi.Int32>());
+    final _l$outStatus = _$$BoltCallocPtr<$$ffi.Int32>.alloc($$ffi.sizeOf<$$ffi.Int32>());
 
 {%- match method.returns.passing %}
 {%- when super::DartFFIReturnsPassing::Void %}
@@ -132,18 +132,21 @@ _f${{ method.name }}(_handle.handle{% if !method.get_proxy_ffi_params().is_empty
 {%- when super::DartFFIValuePassing::Value with (value)  %}
 {%- match value %}
 {%- when super::DartFFIParamValue::Primitive with (primitive) %}
-    final _l$outPtr = _$$BoltCalloc.alloc<{{ primitive.native_type() }}>($$ffi.sizeOf<{{ primitive.native_type() }}>());
+    final _l$outPtr = _$$BoltCallocPtr<{{ primitive.native_type() }}>.alloc($$ffi.sizeOf<{{ primitive.native_type() }}>());
     _f${{ method.name }}(_handle.handle{% if !method.get_proxy_ffi_params().is_empty() %}{% for ffi_param in method.get_proxy_ffi_params() %}, {{ ffi_param }}{% endfor %}{% endif %}, _l$outPtr.ptr, _l$outStatus.ptr.cast());
 {%- when _ %}
 {%- endmatch %}
 {%- when super::DartFFIValuePassing::WireEncoded %}
-    final _l$outPtr = _$$BoltCalloc.alloc<$$ffi.Pointer<$$ffi.Uint8>>($$ffi.sizeOf<$$ffi.Pointer<$$ffi.Uint8>>());
-    final _l$outLen = _$$BoltCalloc.alloc<$$ffi.UintPtr>($$ffi.sizeOf<$$ffi.UintPtr>());
+    final _l$outPtr = _$$BoltCallocPtr<$$ffi.Pointer<$$ffi.Uint8>>.alloc($$ffi.sizeOf<$$ffi.Pointer<$$ffi.Uint8>>());
+    final _l$outLen = _$$BoltCallocPtr<$$ffi.UintPtr>.alloc($$ffi.sizeOf<$$ffi.UintPtr>());
     _f${{ method.name }}(_handle.handle{% if !method.get_proxy_ffi_params().is_empty() %}{% for ffi_param in method.get_proxy_ffi_params() %}, {{ ffi_param }}{% endfor %}{% endif %}, _l$outPtr.ptr, _l$outLen.ptr, _l$outStatus.ptr.cast());
 {%- when _ -%}
 {%- endmatch %}
 {%- when _ -%}
 {%- endmatch %}
+{%- for param in method.params %}
+{%- filter indent(4) %}{% include "callable_do_function_arg_storage_release.txt" %}{%- endfilter %}
+{%- endfor %}
     if (_l$outStatus.ptr.value != 0) {
       throw $$BoltException("{{ cb.class_name }}.{{ method.name }}(...) foreign callback panicked");
     } 
@@ -177,7 +180,7 @@ final class {{ cb.impl_class_name }} {
   static final _$$BoltFFIHandleMap<{{ cb.class_name }}> _k$map = _$$BoltFFIHandleMap();
 
   static final _$$BoltCallocPtr<{{ cb.vtable_struct_name }}> _k$vtable = (() {
-    final vtable = _$$BoltCalloc.alloc<{{ cb.vtable_struct_name }}>(
+    final vtable = _$$BoltCallocPtr<{{ cb.vtable_struct_name }}>.alloc(
       $$ffi.sizeOf<{{ cb.vtable_struct_name }}>(),
     );
 
@@ -213,7 +216,7 @@ final class {{ cb.impl_class_name }} {
       throw $$BoltException("{{ cb.class_name }}: invalid handle `${_p$handle}`");
     }
     {% let cb_params = method.params %}
-    {%- filter trim | indent(4, false) %}{% include "callable_do_closure_parse_args.txt" %}{% endfilter %}
+    {%- filter trim | indent(4, false) %}{% include "callable_do_closure_args_parse.txt" %}{% endfilter %}
 {%- if let super::DartType::Result { ok, err } = method.returns.ty.inner %}
     late final $$BoltResult<{{ ok.dart_type() }}, {{ err.dart_type() }}> {{ method.returns.res_name() }};
     try {
@@ -227,14 +230,15 @@ final class {{ cb.impl_class_name }} {
     } catch (_p$e) {
       final _l$eString = _p$e.toString();
 {%- if method.is_async() %}
-      final {{ method.returns.storage_name() }} = _$$BoltCalloc.alloc<$$ffi.Uint8>(4 + _l$eString.length * 3);
+      final {{ method.returns.storage_name() }} = _$$BoltStoragePool.acquireStorage(4 + _l$eString.length * 3);
 {%- else %}
-      final {{ method.returns.storage_name() }} = _$$BoltCalloc.allocUnmanaged<$$ffi.Uint8>(4 + _l$eString.length * 3);
+      final {{ method.returns.storage_name() }} = _$$BoltCallocPtr<$$ffi.Uint8>.allocUnmanaged(4 + _l$eString.length * 3);
 {%- endif %}
       final {{ method.returns.wire_name() }} = _$$BoltWireEncoder(_$$BoltBufWriter.fromSpan({{ method.returns.storage_name() }}.ptr, {{ method.returns.storage_name() }}.len));
       {{ method.returns.wire_name() }}.writeString(_l$eString);
 {%- if method.is_async() %}
       _p$callback.asFunction<void Function(int, $$ffi.Pointer<$$ffi.Uint8>, int, int)>()(_p$asyncCtx, {{ method.returns.storage_name() }}.ptr, {{ method.returns.wire_name() }}.len, 1);
+      _$$BoltStoragePool.releaseStorage({{ method.returns.storage_name() }});
 {%- else %}
       _p$outPtr.value = {{ method.returns.storage_name() }}.ptr;
       _p$outLen.value = {{ method.returns.wire_name() }}.len;
@@ -243,14 +247,15 @@ final class {{ cb.impl_class_name }} {
       return;
     }
 {%- if method.is_async() %}
-    final {{ method.returns.storage_name() }} = _$$BoltCalloc.alloc<$$ffi.Uint8>({{ method.returns.wire_size_expr() }});
+    final {{ method.returns.storage_name() }} = _$$BoltStoragePool.acquireStorage({{ method.returns.wire_size_expr() }});
 {%- else %}
-    final {{ method.returns.storage_name() }} = _$$BoltCalloc.allocUnmanaged<$$ffi.Uint8>({{ method.returns.wire_size_expr() }});
+    final {{ method.returns.storage_name() }} = _$$BoltCallocPtr<$$ffi.Uint8>.allocUnmanaged({{ method.returns.wire_size_expr() }});
 {%- endif %}
     final {{ method.returns.wire_name() }} = _$$BoltWireEncoder(_$$BoltBufWriter.fromSpan({{ method.returns.storage_name() }}.ptr, {{ method.returns.storage_name() }}.len));
     {{ method.returns.wire_encode_expr() | trim | indent(4, false) }};
 {%- if method.is_async() %}
     _p$callback.asFunction<void Function(int, $$ffi.Pointer<$$ffi.Uint8>, int, int)>()(_p$asyncCtx, {{ method.returns.storage_name() }}.ptr, {{ method.returns.wire_name() }}.len, 0);
+      _$$BoltStoragePool.releaseStorage({{ method.returns.storage_name() }});
 {%- else %}
     _p$outPtr.value = {{ method.returns.storage_name() }}.ptr;
     _p$outLen.value = {{ method.returns.wire_name() }}.len;
@@ -297,14 +302,15 @@ final class {{ cb.impl_class_name }} {
 {%- when super::DartFFIValuePassing::WireEncoded %}
     final {{ method.returns.res_name() }} = {{ func_call_expr | trim }};
 {%- if method.is_async() %}
-    final {{ method.returns.storage_name() }} = _$$BoltCalloc.alloc<$$ffi.Uint8>({{ method.returns.wire_size_expr() }});
+    final {{ method.returns.storage_name() }} = _$$BoltStoragePool.acquireStorage({{ method.returns.wire_size_expr() }});
 {%- else %}
-    final {{ method.returns.storage_name() }} = _$$BoltCalloc.allocUnmanaged<$$ffi.Uint8>({{ method.returns.wire_size_expr() }});
+    final {{ method.returns.storage_name() }} = _$$BoltCallocPtr<$$ffi.Uint8>.allocUnmanaged({{ method.returns.wire_size_expr() }});
 {%- endif %}
     final {{ method.returns.wire_name() }} = _$$BoltWireEncoder(_$$BoltBufWriter.fromSpan({{ method.returns.storage_name() }}.ptr, {{ method.returns.storage_name() }}.len));
     {{ method.returns.wire_encode_expr() | trim | indent(4, false) }};
 {%- if method.is_async() %}
     _p$callback.asFunction<void Function(int, $$ffi.Pointer<$$ffi.Uint8>, int, int)>()(_p$asyncCtx, {{ method.returns.storage_name() }}.ptr, {{ method.returns.wire_name() }}.len, 0);
+    _$$BoltStoragePool.releaseStorage({{ method.returns.storage_name() }});
 {%- else %}
     _p$outPtr.value = {{ method.returns.storage_name() }}.ptr;
     _p$outLen.value = {{ method.returns.wire_name() }}.len;

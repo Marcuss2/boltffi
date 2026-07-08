@@ -72,9 +72,9 @@ final class _I$ICallbackProxy implements ICallback {
   }
 
   @override
-  Future<int> mapU32(int n) async {
+  Future<int> mapU32(int n) {
     final _l$completer = $$async.Completer<int>();
-    final _l$outPtr = _$$BoltCalloc.alloc<$$ffi.Uint32>($$ffi.sizeOf<$$ffi.Uint32>());
+    final _l$outPtr = _$$BoltCallocPtr<$$ffi.Uint32>.alloc($$ffi.sizeOf<$$ffi.Uint32>());
     late final $$ffi.NativeCallable<$$ffi.Void Function($$ffi.Uint64, $$ffi.Uint32, $$ffi.Int32)> _l$completerCallbackCallable;
     _l$completerCallbackCallable = $$ffi.NativeCallable.listener((int _p$data, int _p$out, int _p$outStatus) {
       _l$completerCallbackCallable.close();
@@ -87,9 +87,9 @@ final class _I$ICallbackProxy implements ICallback {
     return _l$completer.future;
   }
   @override
-  Future<String> mapStringRef(String s) async {
+  Future<String> mapStringRef(String s) {
     final _l$completer = $$async.Completer<String>();
-    final l$sStorage = _$$BoltCalloc.alloc<$$ffi.Uint8>((4 + (s.length * 3)));
+    final l$sStorage = _$$BoltStoragePool.acquireStorage((4 + (s.length * 3)));
     final l$sWire = _$$BoltWireEncoder(_$$BoltBufWriter.fromSpan(l$sStorage.ptr, l$sStorage.len));
     l$sWire.writeString(s);
     late final $$ffi.NativeCallable<$$ffi.Void Function($$ffi.Uint64, $$ffi.Pointer<$$ffi.Uint8>, $$ffi.UintPtr, $$ffi.Int32)> _l$completerCallbackCallable;
@@ -102,12 +102,13 @@ final class _I$ICallbackProxy implements ICallback {
       _l$completer.complete(_l$resWire.readString());
     });
     _f$mapStringRef(_handle.handle, l$sStorage.ptr, l$sWire.len, _l$completerCallbackCallable.nativeFunction, 0);
+    _$$BoltStoragePool.releaseStorage(l$sStorage);
     return _l$completer.future;
   }
   @override
-  Future<String> mapString(String s) async {
+  Future<String> mapString(String s) {
     final _l$completer = $$async.Completer<String>();
-    final l$sStorage = _$$BoltCalloc.alloc<$$ffi.Uint8>((4 + (s.length * 3)));
+    final l$sStorage = _$$BoltStoragePool.acquireStorage((4 + (s.length * 3)));
     final l$sWire = _$$BoltWireEncoder(_$$BoltBufWriter.fromSpan(l$sStorage.ptr, l$sStorage.len));
     l$sWire.writeString(s);
     late final $$ffi.NativeCallable<$$ffi.Void Function($$ffi.Uint64, $$ffi.Pointer<$$ffi.Uint8>, $$ffi.UintPtr, $$ffi.Int32)> _l$completerCallbackCallable;
@@ -120,12 +121,13 @@ final class _I$ICallbackProxy implements ICallback {
       _l$completer.complete(_l$resWire.readString());
     });
     _f$mapString(_handle.handle, l$sStorage.ptr, l$sWire.len, _l$completerCallbackCallable.nativeFunction, 0);
+    _$$BoltStoragePool.releaseStorage(l$sStorage);
     return _l$completer.future;
   }
   @override
-  Future<void> processBytes($$typed_data.Uint8List bytes) async {
+  Future<void> processBytes($$typed_data.Uint8List bytes) {
     final _l$completer = $$async.Completer<void>();
-    final l$bytesStorage = _$$BoltCalloc.alloc<$$ffi.Uint8>((4 + bytes.length));
+    final l$bytesStorage = _$$BoltStoragePool.acquireStorage((4 + bytes.length));
     final l$bytesWire = _$$BoltWireEncoder(_$$BoltBufWriter.fromSpan(l$bytesStorage.ptr, l$bytesStorage.len));
     l$bytesWire.writeBytes(bytes);
     late final $$ffi.NativeCallable<$$ffi.Void Function($$ffi.Uint64, $$ffi.Int32)> _l$completerCallbackCallable;
@@ -137,6 +139,7 @@ final class _I$ICallbackProxy implements ICallback {
       _l$completer.complete(null);
     });
     _f$processBytes(_handle.handle, l$bytesStorage.ptr, l$bytesWire.len, _l$completerCallbackCallable.nativeFunction, 0);
+    _$$BoltStoragePool.releaseStorage(l$bytesStorage);
     return _l$completer.future;
   }
 }
@@ -145,7 +148,7 @@ final class _I$ICallback {
   static final _$$BoltFFIHandleMap<ICallback> _k$map = _$$BoltFFIHandleMap();
 
   static final _$$BoltCallocPtr<_I$ICallbackVTable> _k$vtable = (() {
-    final vtable = _$$BoltCalloc.alloc<_I$ICallbackVTable>(
+    final vtable = _$$BoltCallocPtr<_I$ICallbackVTable>.alloc(
       $$ffi.sizeOf<_I$ICallbackVTable>(),
     );
 
@@ -189,10 +192,11 @@ final class _I$ICallback {
     final l$sWire = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(sPtr, sLen));
     final l$s = l$sWire.readString();
     final _l$res = await _l$impl.mapStringRef(l$s);
-    final _l$resStorage = _$$BoltCalloc.alloc<$$ffi.Uint8>((4 + (_l$res.length * 3)));
+    final _l$resStorage = _$$BoltStoragePool.acquireStorage((4 + (_l$res.length * 3)));
     final _l$resWire = _$$BoltWireEncoder(_$$BoltBufWriter.fromSpan(_l$resStorage.ptr, _l$resStorage.len));
     _l$resWire.writeString(_l$res);
     _p$callback.asFunction<void Function(int, $$ffi.Pointer<$$ffi.Uint8>, int, int)>()(_p$asyncCtx, _l$resStorage.ptr, _l$resWire.len, 0);
+    _$$BoltStoragePool.releaseStorage(_l$resStorage);
   }
 
   static void mapString(int _p$handle, $$ffi.Pointer<$$ffi.Uint8> sPtr, int sLen, $$ffi.Pointer<$$ffi.NativeFunction<$$ffi.Void Function($$ffi.Uint64, $$ffi.Pointer<$$ffi.Uint8>, $$ffi.UintPtr, $$ffi.Int32)>> _p$callback, int _p$asyncCtx) async {
@@ -203,10 +207,11 @@ final class _I$ICallback {
     final l$sWire = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(sPtr, sLen));
     final l$s = l$sWire.readString();
     final _l$res = await _l$impl.mapString(l$s);
-    final _l$resStorage = _$$BoltCalloc.alloc<$$ffi.Uint8>((4 + (_l$res.length * 3)));
+    final _l$resStorage = _$$BoltStoragePool.acquireStorage((4 + (_l$res.length * 3)));
     final _l$resWire = _$$BoltWireEncoder(_$$BoltBufWriter.fromSpan(_l$resStorage.ptr, _l$resStorage.len));
     _l$resWire.writeString(_l$res);
     _p$callback.asFunction<void Function(int, $$ffi.Pointer<$$ffi.Uint8>, int, int)>()(_p$asyncCtx, _l$resStorage.ptr, _l$resWire.len, 0);
+    _$$BoltStoragePool.releaseStorage(_l$resStorage);
   }
 
   static void processBytes(int _p$handle, $$ffi.Pointer<$$ffi.Uint8> bytesPtr, int bytesLen, $$ffi.Pointer<$$ffi.NativeFunction<$$ffi.Void Function($$ffi.Uint64, $$ffi.Int32)>> _p$callback, int _p$asyncCtx) async {

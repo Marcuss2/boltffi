@@ -21,24 +21,19 @@ static {{ owner.name() }}{% if is_optional %}?{% endif %} {{ ctor_name }}
 {%- for arg in func.sig.args -%}
   {{ arg.ty.dart_type() }} {{ arg.name }}{% if !loop.last %}, {% endif %}
 {%- endfor -%}
-){% if func.is_async() %} async{% endif %} {
+) {
 {%- if let Some(self_wire_size) = func.self_wire_size() %}
-  final {{ func.self_storage_name() }} = _$$BoltCalloc.alloc<$$ffi.Uint8>({{ self_wire_size }});
-{%- endif %}
-{%- for param in func.params %}
-{%- filter indent(2) %}{%- include "callable_do_function_args_storage.txt" %}{%- endfilter %}
-{%- endfor %}
-{%- if let Some(self_wire_size) = func.self_wire_size() %}
+  final {{ func.self_storage_name() }} = _$$BoltCallocPtr<$$ffi.Uint8>.alloc({{ self_wire_size }});
   final {{ func.self_wire_name() }} = _$$BoltWireEncoder(_$$BoltBufWriter.fromSpan({{ func.self_storage_name() }}.ptr, {{ func.self_storage_name() }}.len));
 {%- endif %}
 {%- for param in func.params %}
-{%- filter indent(2) %}{%- include "callable_do_function_parse_args.txt" %}{%- endfilter %}
+{%- filter indent(2) %}{%- include "callable_do_function_arg_parse.txt" %}{%- endfilter %}
 {%- endfor %}
 {%- if let Some(self_wire_encode_expr) = func.self_wire_encode_expr() %}
   {{ self_wire_encode_expr|indent(2)|trim }};
 {%- endif %}
 {%- for param in func.params %}
-{%- filter indent(2) %}{%- include "callable_do_function_args_write.txt" %}{%- endfilter %}
+{%- filter indent(2) %}{%- include "callable_do_function_arg_write.txt" %}{%- endfilter %}
 {%- endfor %}
 {%- match func.mode %}
 {%- when super::DartFunctionMode::Async with (async_def) %}
@@ -50,28 +45,26 @@ static {{ owner.name() }}{% if is_optional %}?{% endif %} {{ ctor_name }}
     ),
     pollFuture: _f${{ async_def.poll_symbol }},
     completeFuture: (_p$handle) {
-      final _l$status = _$$BoltCalloc.alloc<$$ffi.Int32>($$ffi.sizeOf<$$ffi.Int32>());
-      final _l$funcRes = _f${{ async_def.complete_symbol }}(_p$handle, _l$status.ptr.cast());
-      if (_l$status.ptr.value != 0) {
-        throw $$BoltException("Error completing future: ${_p$handle} with status code: ${_l$status.ptr.value}");
-      }
-      {%- let return_binding %}
-      _l$funcRes
-      {% endlet %}
-      {% filter trim | indent(6, false) %}{% include "callable_do_return.txt" %}{% endfilter %}
+      final _l$status = _$$BoltCallocPtr<$$ffi.Int32>.alloc($$ffi.sizeOf<$$ffi.Int32>());
+{%- let func_call_expr %}
+_f${{ async_def.complete_symbol }}(_p$handle, _l$status.ptr.cast());
+if (_l$status.ptr.value != 0) {
+  throw $$BoltException("Error completing future: ${_p$handle} with status code: ${_l$status.ptr.value}");
+}
+{%- endlet %}
+      {%- filter indent(6) %}{% include "callable_do_return.txt" %}{%- endfilter %}
     },
     freeFuture: _f${{ async_def.free_symbol }},
     cancelFuture: _f${{ async_def.cancel_symbol }},
   );
 {%- when super::DartFunctionMode::Sync %}
-  final _l$funcRes = _f${{ func.ffi_def.symbol }}(
-  {%- for ffi_param in func.get_ffi_params() -%}
-    {{ ffi_param }}{% if !loop.last %}, {% endif %}
-  {%- endfor -%}
-  );
-  {%- let return_binding %}
-  _l$funcRes
-  {%- endlet %}
-  {% filter trim | indent(2, false) %}{% include "callable_do_return.txt" %}{% endfilter %}
+{%- let func_call_expr %}
+_f${{ func.ffi_def.symbol }}(
+{%- for ffi_param in func.get_ffi_params() -%}
+  {{ ffi_param }}{% if !loop.last %}, {% endif %}
+{%- endfor -%}
+);
+{%- endlet %}
+  {%- filter indent(2) %}{% include "callable_do_return.txt" %}{%- endfilter %}
 {%- endmatch %}
 }

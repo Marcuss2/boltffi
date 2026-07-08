@@ -1,14 +1,15 @@
 {%- match param.passing %}
 {%- when super::DartFFIValuePassing::WireEncoded %}
+final {{ param.storage_name() }} = _$$BoltStoragePool.acquireStorage({{ param.wire_size_expr() }});
 final {{ param.wire_name() }} = _$$BoltWireEncoder(_$$BoltBufWriter.fromSpan({{ param.storage_name() }}.ptr, {{ param.storage_name() }}.len));
 {%- when super::DartFFIValuePassing::Bytes with (_) %}
 {%- if let Some(bytes_create_expr) = param.bytes_create_expr() %}
 final {{ param.bytes_name() }} = {{ bytes_create_expr }};
 {%- endif %}
-final {{ param.storage_name() }} = _$$BoltCalloc.alloc<$$ffi.Uint8>({{ param.bytes_len_expr() }});
+final {{ param.storage_name() }} = _$$BoltStoragePool.acquireStorage({{ param.bytes_len_expr() }});
 final {{ param.writer_name() }} = _$$BoltBufWriter.fromSpan({{ param.storage_name() }}.ptr, {{ param.storage_name() }}.len);
 {%- when super::DartFFIValuePassing::List with (_) %}
-final {{ param.storage_name() }} = _$$BoltCalloc.alloc<$$ffi.Uint8>({{ param.list_bytes_len_expr() }});
+final {{ param.storage_name() }} = _$$BoltStoragePool.acquireStorage({{ param.list_bytes_len_expr() }});
 final {{ param.writer_name() }} = _$$BoltBufWriter.fromSpan({{ param.storage_name() }}.ptr, {{ param.storage_name() }}.len);
 {%- when super::DartFFIValuePassing::Closure with (cb_def) %}
 final {{ param.callable_name() }} = $$ffi.NativeCallable<
@@ -23,7 +24,7 @@ final {{ param.callable_name() }} = $$ffi.NativeCallable<
 {%- endfor -%}
 ) {
   {%- let cb_params = cb_def.params %}
-  {%- filter indent(2) %}{% include "callable_do_closure_parse_args.txt" %}{% endfilter %}
+  {%- filter indent(2) %}{% include "callable_do_closure_args_parse.txt" %}{% endfilter %}
   {%- let call_expr %}
   {{ param.name }}(
   {%- for cb_param in cb_def.params -%}
@@ -60,7 +61,7 @@ final {{ param.callable_name() }} = $$ffi.NativeCallable<
 {%- else %}
   final {{ cb_def.returns.res_name() }} = {{ call_expr | indent(2) | trim }};
 {%- endif %}
-  final {{ cb_def.returns.storage_name() }} = _$$BoltCalloc.allocUnmanaged<$$ffi.Uint8>({{ cb_def.returns.wire_size_expr() }});
+  final {{ cb_def.returns.storage_name() }} = _$$BoltCallocPtr<$$ffi.Uint8>.allocUnmanaged({{ cb_def.returns.wire_size_expr() }});
   final {{ cb_def.returns.wire_name() }} = _$$BoltWireEncoder(_$$BoltBufWriter.fromSpan({{ cb_def.returns.storage_name() }}.ptr, {{ cb_def.returns.storage_name() }}.len));
   {{ cb_def.returns.wire_encode_expr() | trim | indent(2, false) }};
   return $$ffi.Struct.create<_$$BoltFFIBuf>()

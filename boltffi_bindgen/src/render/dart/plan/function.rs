@@ -502,7 +502,7 @@ impl DartFunctionParam {
                 ],
                 DartFFIParamValue::Record(..) => vec![
                     format!("{}.ptr", self.storage_name()),
-                    format!("{}.len", self.storage_name()),
+                    format!("{}.len", self.writer_name()),
                 ],
             },
             DartFFIValuePassing::Bytes(bytes) => match bytes {

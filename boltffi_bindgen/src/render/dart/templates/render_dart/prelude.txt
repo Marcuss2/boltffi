@@ -74,25 +74,79 @@ final class _$$BoltCallocPtr<T extends $$ffi.SizedNativeType>
   final $$ffi.Pointer<T> ptr;
   final int len;
 
-  _$$BoltCallocPtr(this.ptr, this.len);
-}
-
-final class _$$BoltCalloc {
   static final _finalizer = $$ffi.NativeFinalizer($$extffi.calloc.nativeFree);
 
-  static _$$BoltCallocPtr<T> alloc<T extends $$ffi.SizedNativeType>(
-    int size,
-  ) {
-    final o = _$$BoltCallocPtr($$extffi.calloc.allocate<T>(size), size);
+  _$$BoltCallocPtr._(this.ptr, this.len);
+
+  factory _$$BoltCallocPtr.alloc(int size) {
+    final o = _$$BoltCallocPtr._($$extffi.calloc.allocate<T>(size), size);
     _finalizer.attach(o, o.ptr.cast(), detach: o);
     return o;
   }
 
-  static _$$BoltCallocPtr<T> allocUnmanaged<T extends $$ffi.SizedNativeType>(
-    int size,
-  ) {
-    final o = _$$BoltCallocPtr($$extffi.calloc.allocate<T>(size), size);
+  factory _$$BoltCallocPtr.allocUnmanaged(int size) {
+    final o = _$$BoltCallocPtr._($$extffi.calloc.allocate<T>(size), size);
     return o;
+  }
+
+  void dispose() {
+    _finalizer.detach(this);
+    $$extffi.calloc.free(ptr);
+  }
+}
+
+abstract class _$$BoltStoragePool {
+  static const int kMinCapacity = 1 << 4;
+  static const int kMaxCapacity = 1 << 20;
+  static const int kBucketCount = 17;
+  static const int kCapacityPerBucket = 4;
+
+  // [16B, 16B, 16B, 16B] ... [1MB, 1MB, 1MB, 1MB]
+  static final List<_$$BoltCallocPtr<$$ffi.Uint8>?> buckets = List.filled(kCapacityPerBucket * kBucketCount, null);
+  static final $$typed_data.Uint8List counts = $$typed_data.Uint8List(kBucketCount);
+
+  static int getBucketIndex(int capacity) {
+    return (capacity - 1).bitLength - 4;
+  }
+
+  @pragma('vm:prefer-inline')
+  static _$$BoltCallocPtr<$$ffi.Uint8> acquireStorage(int capacity) {
+    if (capacity > kMaxCapacity || capacity < kMinCapacity) {
+      return _$$BoltCallocPtr.alloc(capacity);
+    }
+
+    final bucketIdx = getBucketIndex(capacity);
+    final bucketCount = counts[bucketIdx];
+
+    if (bucketCount == 0) {
+      return _$$BoltCallocPtr.alloc(kMinCapacity << bucketIdx);
+    }
+
+    final storageIdx = bucketIdx * kCapacityPerBucket + bucketCount - 1;
+    final candidate = buckets[storageIdx]!;
+    buckets[storageIdx] = null;
+    counts[bucketIdx]--;
+    return candidate;
+  }
+
+  @pragma('vm:never-inline')
+  static void _disposeStorage(_$$BoltCallocPtr<$$ffi.Uint8> storage) {
+    storage.dispose();
+  }
+
+  @pragma('vm:prefer-inline')
+  static void releaseStorage(_$$BoltCallocPtr<$$ffi.Uint8> storage) {
+    final len = storage.len;
+    if (len > kMaxCapacity || len < kMinCapacity) {
+      return _disposeStorage(storage);
+    }
+    final bucketIdx = getBucketIndex(len);
+    final bucketCount = counts[bucketIdx];
+    if (bucketCount == kCapacityPerBucket) {
+      return _disposeStorage(storage);
+    }
+    buckets[bucketIdx * kCapacityPerBucket + bucketCount] = storage;
+    counts[bucketIdx]++;
   }
 }
 
