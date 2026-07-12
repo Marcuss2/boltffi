@@ -894,6 +894,7 @@ pub struct DartFunction {
     pub sig: super::DartFunctionSig,
     pub params: Vec<DartFunctionParam>,
     pub returns: DartFunctionReturns,
+    pub doc: Option<String>
 }
 
 impl DartFunction {

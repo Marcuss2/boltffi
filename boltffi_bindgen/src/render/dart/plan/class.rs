@@ -6,4 +6,5 @@ pub struct DartClass {
     pub constructors: Vec<super::DartFunction>,
     pub methods: Vec<super::DartFunction>,
     pub streams: Vec<super::DartStream>,
+    pub doc: Option<String>
 }

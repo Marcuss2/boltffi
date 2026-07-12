@@ -7,7 +7,6 @@ expression: template.render().unwrap()
 >(symbol: 'boltffi_person_free', isLeaf: true)
 external void _f$boltffi_person_free($$ffi.Pointer<$$ffi.Void> handle);
 
-
 @$$ffi.Native<
   $$ffi.Pointer<$$ffi.Void> Function($$ffi.Pointer<$$ffi.Uint8>, $$ffi.UintPtr, $$ffi.Uint32)
 >(symbol: 'boltffi_person_new')
@@ -208,6 +207,7 @@ external void _f$boltffi_person_names_event_callback_unsubscribe($$ffi.Pointer<$
 >(symbol: 'boltffi_person_names_event_callback_free')
 external void _f$boltffi_person_names_event_callback_free($$ffi.Pointer<$$ffi.Void> handle);
 
+/// Generic `Person` Class
 final class Person implements $$ffi.Finalizable {
   static final _finalizer = $$ffi.NativeFinalizer(
     $$ffi.Native.addressOf(_f$boltffi_person_free)
@@ -239,6 +239,7 @@ final class Person implements $$ffi.Finalizable {
     return Person._(_l$res);
   }
 
+  /// Person.getName(...)
   String getName() {
     final _l$resBuf = _f$boltffi_person_get_name(_handle);
     final _l$resWire = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(_l$resBuf.ptr, _l$resBuf.len));
@@ -254,6 +255,7 @@ final class Person implements $$ffi.Finalizable {
     _f$boltffi_free_buf(_l$resBuf);
     return _l$res;
   }
+
 
   Stream<double> temperatureEventAsync() {
     final ctx = _$$BoltStreamCtx(
@@ -277,6 +279,7 @@ final class Person implements $$ffi.Finalizable {
     });
   }
 
+
   $$BoltStreamPopBatchHandle<double> temperatureEventBatch() {
     final ctx = _$$BoltStreamCtx(
       subscribe: () => _f$boltffi_person_temperature_event_batch(_handle),
@@ -298,6 +301,7 @@ final class Person implements $$ffi.Finalizable {
       return l$bufReader.readFloat32List(l$count * itemSize, 0);
     });
   }
+
 
   $$async.StreamSubscription<double> temperatureEventCallback(void Function(double) cb) {
     final ctx = _$$BoltStreamCtx(
@@ -323,6 +327,8 @@ final class Person implements $$ffi.Finalizable {
     return stream.listen(cb);
   }
 
+
+  /// GetTemperature stream
   Stream<String> namesEventAsync() {
     final ctx = _$$BoltStreamCtx(
       subscribe: () => _f$boltffi_person_names_event_async(_handle),
@@ -343,6 +349,8 @@ final class Person implements $$ffi.Finalizable {
     });
   }
 
+
+  /// GetTemperature stream
   $$BoltStreamPopBatchHandle<String> namesEventBatch() {
     final ctx = _$$BoltStreamCtx(
       subscribe: () => _f$boltffi_person_names_event_batch(_handle),
@@ -364,6 +372,8 @@ final class Person implements $$ffi.Finalizable {
     });
   }
 
+
+  /// GetTemperature stream
   $$async.StreamSubscription<String> namesEventCallback(void Function(String) cb) {
     final ctx = _$$BoltStreamCtx(
       subscribe: () => _f$boltffi_person_names_event_callback(_handle),

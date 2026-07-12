@@ -101,7 +101,7 @@ abstract class _$$BoltStoragePool {
   static const int kBucketCount = 17;
   static const int kCapacityPerBucket = 4;
 
-  // [16B, 16B, 16B, 16B] ... [1MB, 1MB, 1MB, 1MB]
+  // [16B, 16B, 16B, 16B ... 1MB, 1MB, 1MB, 1MB]
   static final List<_$$BoltCallocPtr<$$ffi.Uint8>?> buckets = List.filled(kCapacityPerBucket * kBucketCount, null);
   static final $$typed_data.Uint8List counts = $$typed_data.Uint8List(kBucketCount);
 

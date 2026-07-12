@@ -1,5 +1,11 @@
+{%- if let Some(doc) = cb.doc %}
+{{ super::to_dart_doc(doc) }}
+{%- endif %}
 abstract interface class {{ cb.class_name }} {
 {%- for method in cb.methods %}
+{%- if let Some(doc) = method.doc %}
+  {{ super::to_dart_doc(doc) }}
+{%- endif %}
   {% if method.is_async() %}Future<{{ method.sig.ret.dart_type() }}>{% else %}{{ method.sig.ret.dart_type() }}{% endif %} {{ method.name }}(
 {%- for arg in method.sig.args -%}
     {{ arg.ty.dart_type() }} {{ arg.name }}{% if !loop.last %}, {% endif %}
@@ -255,7 +261,7 @@ final class {{ cb.impl_class_name }} {
     {{ method.returns.wire_encode_expr() | trim | indent(4, false) }};
 {%- if method.is_async() %}
     _p$callback.asFunction<void Function(int, $$ffi.Pointer<$$ffi.Uint8>, int, int)>()(_p$asyncCtx, {{ method.returns.storage_name() }}.ptr, {{ method.returns.wire_name() }}.len, 0);
-      _$$BoltStoragePool.releaseStorage({{ method.returns.storage_name() }});
+    _$$BoltStoragePool.releaseStorage({{ method.returns.storage_name() }});
 {%- else %}
     _p$outPtr.value = {{ method.returns.storage_name() }}.ptr;
     _p$outLen.value = {{ method.returns.wire_name() }}.len;

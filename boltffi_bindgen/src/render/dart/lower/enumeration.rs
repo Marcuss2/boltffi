@@ -88,6 +88,7 @@ impl<'a> super::DartLowerer<'a> {
             is_error: enum_def.is_error,
             constructors,
             methods,
+            doc: enum_def.doc.clone(),
         }
     }
 

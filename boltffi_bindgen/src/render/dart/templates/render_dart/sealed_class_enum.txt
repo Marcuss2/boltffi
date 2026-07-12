@@ -4,6 +4,9 @@
 {%- for func in dart_enum.methods %}
 {% include "extern_function.txt" %}
 {%- endfor %}
+{%- if let Some(doc) = dart_enum.doc %}
+{{ super::to_dart_doc(doc) }}
+{%- endif%}
 sealed class {{ dart_enum.name }}{% if dart_enum.is_error %} implements Exception{% endif %} {
   const {{ dart_enum.name }}();
 {% for variant in dart_enum.variants %}

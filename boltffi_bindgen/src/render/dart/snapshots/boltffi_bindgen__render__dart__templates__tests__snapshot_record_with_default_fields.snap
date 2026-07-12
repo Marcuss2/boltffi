@@ -2,9 +2,16 @@
 source: boltffi_bindgen/src/render/dart/templates.rs
 expression: template.render().unwrap()
 ---
+
+/// A 3D Vector
+/// 
+/// `z` coordinate defaults to 0
 final class Vector {
+  /// `x` coordinate
   double x;
+  /// `y` coordinate
   double y;
+  /// `z` coordinate
   double z;
 
   Vector({

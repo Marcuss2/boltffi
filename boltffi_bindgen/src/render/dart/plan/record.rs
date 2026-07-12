@@ -11,6 +11,7 @@ pub struct DartRecordField {
     pub default_value: Option<DefaultValue>,
     pub read_seq: ReadSeq,
     pub write_seq: WriteSeq,
+    pub doc: Option<String>,
 }
 
 impl DartRecordField {
@@ -122,6 +123,7 @@ pub struct DartRecord {
     pub blittable_layout: Option<DartBlittableLayout>,
     pub constructors: Vec<super::DartFunction>,
     pub methods: Vec<super::DartFunction>,
+    pub doc: Option<String>,
 }
 
 impl DartRecord {

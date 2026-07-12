@@ -18,6 +18,7 @@ pub struct DartStream {
     pub unsubscribe_fn: DartFFIFunctionDef,
     pub free_fn: DartFFIFunctionDef,
     pub mode: StreamMode,
+    pub doc: Option<String>
 }
 
 impl DartStream {

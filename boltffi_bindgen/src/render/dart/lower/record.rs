@@ -52,7 +52,6 @@ impl<'a> super::DartLowerer<'a> {
             .record_field_write_seq(abi_record, &field.name)
             .unwrap();
         let record_field_read_seq = self.record_field_read_seq(abi_record, &field.name).unwrap();
-
         DartRecordField {
             name: NamingConvention::property_name(field.name.as_str()),
             offset: 0,
@@ -60,6 +59,7 @@ impl<'a> super::DartLowerer<'a> {
             default_value: field.default.clone(),
             read_seq: record_field_read_seq,
             write_seq: record_field_write_seq,
+            doc: field.doc.clone(),
         }
     }
 
@@ -161,6 +161,7 @@ impl<'a> super::DartLowerer<'a> {
             blittable_layout,
             constructors,
             methods,
+            doc: record.doc.clone(),
         }
     }
 

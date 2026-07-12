@@ -1,3 +1,6 @@
+{%- if let Some(doc) = func.doc %}
+{{ super::to_dart_doc(doc) }}
+{%- endif %}
 {%- match func.ty %}
 {%- when super::DartFunctionType::TopLevel with { name: func_name, .. } %}
 {% if func.is_async() %}Future<{{ func.sig.ret.dart_type() }}>{% else %}{{ func.sig.ret.dart_type() }}{% endif %} {{ func_name }}
@@ -65,6 +68,6 @@ _f${{ func.ffi_def.symbol }}(
 {%- endfor -%}
 );
 {%- endlet %}
-  {%- filter indent(2) %}{% include "callable_do_return.txt" %}{%- endfilter %}
+{%- filter indent(2) %}{% include "callable_do_return.txt" %}{%- endfilter %}
 {%- endmatch %}
 }

@@ -5,6 +5,9 @@
 {% include "extern_function.txt" %}
 {%- endfor %}
 
+{%- if let Some(doc) = dart_enum.doc %}
+{{ super::to_dart_doc(doc) }}
+{%- endif%}
 enum {{ dart_enum.name }}{% if dart_enum.is_error %} implements Exception{% endif %} {
 {%- for variant in dart_enum.variants %}
   {{ variant.name }}._({{ variant.discriminant }}){%- if !loop.last %},{%- else %};{%- endif %}

@@ -239,6 +239,7 @@ impl<'a> DartLowerer<'a> {
         abi_params_start: usize,
         param_defs: &[ParamDef],
         return_def: &ReturnDef,
+        doc: Option<String>,
     ) -> DartFunction {
         let mode = match &abi_call.mode {
             CallMode::Sync => DartFunctionMode::Sync,
@@ -318,6 +319,7 @@ impl<'a> DartLowerer<'a> {
             },
             sig: DartFunctionSig::from_params_return_def(param_defs, return_def, &self.ffi.catalog),
             returns,
+            doc,
         }
     }
 
@@ -356,6 +358,7 @@ impl<'a> DartLowerer<'a> {
             0,
             &ctor_params,
             &ReturnDef::Value(ret_type_expr),
+            ctor.doc().map(|doc| doc.to_string()),
         )
     }
 
@@ -401,6 +404,7 @@ impl<'a> DartLowerer<'a> {
             abi_param_start,
             &meth.params,
             &meth.returns,
+            meth.doc.clone(),
         )
     }
 
@@ -418,6 +422,7 @@ impl<'a> DartLowerer<'a> {
                     0,
                     &func_def.params,
                     &func_def.returns,
+                    func_def.doc.clone(),
                 )
             })
             .collect()

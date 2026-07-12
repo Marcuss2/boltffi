@@ -2,7 +2,7 @@
   $$ffi.Void Function($$ffi.Pointer<$$ffi.Void>)
 >(symbol: '{{ class.free_symbol }}', isLeaf: true)
 external void _f${{ class.free_symbol }}($$ffi.Pointer<$$ffi.Void> handle);
-{% for func in class.constructors %}
+{%- for func in class.constructors %}
 {% include "extern_function.txt" %}
 {%- endfor %}
 {%- for func in class.methods %}
@@ -22,7 +22,9 @@ external void _f${{ class.free_symbol }}($$ffi.Pointer<$$ffi.Void> handle);
 {% let ffi_def = stream.free_fn %}
 {% include "sync_extern_function.txt" %}
 {%- endfor %}
-
+{% if let Some(doc) = class.doc %}
+{{ super::to_dart_doc(doc) }}
+{%- endif %}
 final class {{ class.name }} implements $$ffi.Finalizable {
   static final _finalizer = $$ffi.NativeFinalizer(
     $$ffi.Native.addressOf(_f${{ class.free_symbol }})
@@ -46,6 +48,9 @@ final class {{ class.name }} implements $$ffi.Finalizable {
 {% for stream in class.streams %}
 {%- match stream.mode %}
 {% when crate::ir::StreamMode::Async %}
+{% if let Some(doc) = stream.doc %}
+  {{ super::to_dart_doc(doc) }}
+{%- endif %}
   Stream<{{ stream.item_ty.dart_type() }}> {{ stream.name }}() {
     final ctx = _$$BoltStreamCtx(
       subscribe: () => _f${{ stream.subscribe_fn.symbol }}(_handle),
@@ -82,6 +87,9 @@ final class {{ class.name }} implements $$ffi.Finalizable {
     });
   }
 {% when crate::ir::StreamMode::Callback %}
+{% if let Some(doc) = stream.doc %}
+  {{ super::to_dart_doc(doc) }}
+{%- endif %}
   $$async.StreamSubscription<{{ stream.item_ty.dart_type() }}> {{ stream.name }}(void Function({{ stream.item_ty.dart_type() }}) cb) {
     final ctx = _$$BoltStreamCtx(
       subscribe: () => _f${{ stream.subscribe_fn.symbol }}(_handle),
@@ -120,6 +128,9 @@ final class {{ class.name }} implements $$ffi.Finalizable {
     return stream.listen(cb);
   }
 {% when crate::ir::StreamMode::Batch %}
+{% if let Some(doc) = stream.doc %}
+  {{ super::to_dart_doc(doc) }}
+{%- endif %}
   $$BoltStreamPopBatchHandle<{{ stream.item_ty.dart_type() }}> {{ stream.name }}() {
     final ctx = _$$BoltStreamCtx(
       subscribe: () => _f${{ stream.subscribe_fn.symbol }}(_handle),

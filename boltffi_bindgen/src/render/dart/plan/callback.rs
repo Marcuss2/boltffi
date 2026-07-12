@@ -8,6 +8,7 @@ pub struct DartCallbackMethod {
     pub params: Vec<super::DartFunctionParam>,
     pub kind: ExecutionKind,
     pub returns: super::DartFunctionReturns,
+    pub doc: Option<String>
 }
 
 impl DartCallbackMethod {
@@ -26,4 +27,5 @@ pub struct DartCallback {
     pub impl_class_name: String,
     pub vtable_struct_name: String,
     pub methods: Vec<DartCallbackMethod>,
+    pub doc: Option<String>
 }

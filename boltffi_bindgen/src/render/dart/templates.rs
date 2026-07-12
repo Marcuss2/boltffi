@@ -162,11 +162,11 @@ mod tests {
                         doc: None,
                     }],
                     returns: ReturnDef::Void,
-                    doc: None,
+                    doc: Some(String::from("process bytes callback method")),
                 },
             ],
             kind: CallbackKind::Trait,
-            doc: None,
+            doc: Some(String::from("A Generic Callback Trait Def")),
         }
     }
 
@@ -228,7 +228,7 @@ mod tests {
             )),
             item_type: TypeExpr::String,
             mode,
-            doc: None,
+            doc: Some(String::from("GetTemperature stream")),
             deprecated: None,
         };
 
@@ -289,7 +289,7 @@ mod tests {
                     params: vec![],
                     returns: ReturnDef::Value(TypeExpr::String),
                     execution_kind: ExecutionKind::Sync,
-                    doc: None,
+                    doc: Some(String::from("Person.getName(...)")),
                     deprecated: None,
                 },
                 MethodDef {
@@ -303,7 +303,7 @@ mod tests {
                 },
             ],
             streams,
-            doc: None,
+            doc: Some(String::from("Generic `Person` Class")),
             deprecated: None,
         });
         let library = lower(&ffi);
@@ -418,25 +418,25 @@ mod tests {
                 FieldDef {
                     name: FieldName::new("x"),
                     type_expr: TypeExpr::Primitive(PrimitiveType::F64),
-                    doc: None,
+                    doc: Some(String::from("`x` coordinate")),
                     default: None,
                 },
                 FieldDef {
                     name: FieldName::new("y"),
                     type_expr: TypeExpr::Primitive(PrimitiveType::F64),
-                    doc: None,
+                    doc: Some(String::from("`y` coordinate")),
                     default: None,
                 },
                 FieldDef {
                     name: FieldName::new("z"),
                     type_expr: TypeExpr::Primitive(PrimitiveType::F64),
-                    doc: None,
+                    doc: Some(String::from("`z` coordinate")),
                     default: Some(DefaultValue::Float(0.0)),
                 },
             ],
             constructors: vec![],
             methods: vec![],
-            doc: None,
+            doc: Some(String::from("A 3D Vector\n\n`z` coordinate defaults to 0")),
             deprecated: None,
         });
 

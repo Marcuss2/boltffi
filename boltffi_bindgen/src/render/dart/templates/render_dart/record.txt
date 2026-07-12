@@ -7,15 +7,21 @@ final class {{ layout.struct_name }} extends $$ffi.Struct {
   external {{ field.native_type.sub_type() }} {{ field.name }};
 {% endfor -%}
 }
-{%- endmatch %}
-{% for func in record.constructors %}
-{% include "extern_function.txt" %}
+{% endmatch %}
+{%- for func in record.constructors %}
+{%- include "extern_function.txt" %}
 {% endfor -%}
-{%- for func in record.methods %}
-{% include "extern_function.txt" %}
-{% endfor -%}
+{% for func in record.methods %}
+{%- include "extern_function.txt" %}
+{% endfor %}
+{%- if let Some(doc) = record.doc %}
+{{ super::to_dart_doc(doc) }}
+{%- endif%}
 final class {{ record.name }}{% if !record.interfaces.is_empty() %} implements {% for interface in record.interfaces %}{{ interface.name() }}{% if !loop.last %}, {% endif %}{%- endfor %}{% endif %} {
 {%- for field in record.fields %}
+{%- if let Some(doc) = field.doc %}
+  {{ super::to_dart_doc(doc) }}
+{%- endif%}
   {{ field.ty.dart_type() }} {{ field.name }};
 {%- endfor %}
 
@@ -77,7 +83,7 @@ final class {{ record.name }}{% if !record.interfaces.is_empty() %} implements {
       final l$itemOffset = l$offset + (l$i * _k$structSize);
 {%- for field in layout.fields %}
       _p$writer.{{ field.primitive_write_method() }}(l$item.{{ field.name }}, l$itemOffset + {{ field.offset_const_name }});
-{%- endfor -%}
+{%- endfor %}
     }
   }
 
@@ -124,14 +130,14 @@ final class {{ record.name }}{% if !record.interfaces.is_empty() %} implements {
 
     return other is {{ record.name }}{% if !record.fields.is_empty() %} && {% for field in record.fields %}{{ field.field_cmp_expr("other") }}{% if !loop.last %} && {% endif %}{% endfor %}{% endif %};
   }
-{%- for func in record.constructors %}
+{% for func in record.constructors %}
 {%- filter indent(2, true) %}
-{% include "callable.txt" -%}
+{%- include "callable.txt" %}
 {%- endfilter %}
-{% endfor -%}
+{% endfor %}
 {%- for func in record.methods %}
 {%- filter indent(2, true) %}
-{% include "callable.txt" -%}
+{%- include "callable.txt" %}
 {%- endfilter %}
-{%- endfor %}
+{% endfor -%}
 }

@@ -2,6 +2,8 @@
 source: boltffi_bindgen/src/render/dart/templates.rs
 expression: template.render().unwrap()
 ---
+
+/// A Generic Callback Trait Def
 abstract interface class ICallback {
   int mapU32(int n);
 
@@ -9,6 +11,7 @@ abstract interface class ICallback {
 
   String mapString(String s);
 
+  /// process bytes callback method
   void processBytes($$typed_data.Uint8List bytes);
 }
 

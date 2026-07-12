@@ -19,7 +19,7 @@ impl<'a> super::DartLowerer<'a> {
 
     fn lower_callback_method(
         &self,
-        cb: &CallbackMethodDef,
+        cb_meth: &CallbackMethodDef,
         abi_meth: &AbiCallbackMethod,
     ) -> DartCallbackMethod {
         // skip callback handle param def
@@ -30,7 +30,7 @@ impl<'a> super::DartLowerer<'a> {
             .filter(|p| matches!(p.role, ParamRole::Input { .. }))
             .cloned()
             .collect::<Vec<_>>();
-        assert!(cb.params.len() == input_cb_params.len());
+        assert!(cb_meth.params.len() == input_cb_params.len());
 
         let mut ffi_args = vec![DartFFIFunctionParamSig {
             name: "_p$handle".to_string(),
@@ -118,10 +118,10 @@ impl<'a> super::DartLowerer<'a> {
         };
 
         DartCallbackMethod {
-            name: NamingConvention::function_name(cb.id.as_str()),
+            name: NamingConvention::function_name(cb_meth.id.as_str()),
             sig: DartFunctionSig::from_params_return_def(
-                &cb.params,
-                &cb.returns,
+                &cb_meth.params,
+                &cb_meth.returns,
                 &self.ffi.catalog,
             ),
             ffi_sig: DartFFIFunctionSig {
@@ -131,10 +131,10 @@ impl<'a> super::DartLowerer<'a> {
                     &abi_meth.error,
                 ),
             },
-            params: self.lower_function_params(&cb.params, &input_cb_params),
-            kind: cb.execution_kind,
+            params: self.lower_function_params(&cb_meth.params, &input_cb_params),
+            kind: cb_meth.execution_kind,
             returns: DartFunctionReturns {
-                ty: DartReturnType::from_return_def(&cb.returns, &self.ffi.catalog),
+                ty: DartReturnType::from_return_def(&cb_meth.returns, &self.ffi.catalog),
                 passing: match &abi_meth.returns.transport {
                     Some(transport) => match DartFFIReturnsPassing::Passing(
                         self.value_passing_from_transport(transport),
@@ -154,6 +154,7 @@ impl<'a> super::DartLowerer<'a> {
                     .clone()
                     .map(emit::remap_write_seq),
             },
+            doc: cb_meth.doc.clone(),
         }
     }
 
@@ -176,6 +177,7 @@ impl<'a> super::DartLowerer<'a> {
             impl_class_name,
             vtable_struct_name,
             methods,
+            doc: cb_def.doc.clone(),
         }
     }
 

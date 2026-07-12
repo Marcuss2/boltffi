@@ -152,6 +152,7 @@ impl<'a> super::DartLowerer<'a> {
                 is_leaf: false,
             },
             mode: stream.mode,
+            doc: stream.doc.clone(),
         }
     }
 
@@ -198,6 +199,7 @@ impl<'a> super::DartLowerer<'a> {
             constructors,
             methods,
             streams,
+            doc: class.doc.clone()
         }
     }
 
