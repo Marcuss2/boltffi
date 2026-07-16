@@ -1131,16 +1131,16 @@ impl Config {
         self.targets.dart.output.clone()
     }
 
-    pub fn dart_native_architectures(&self) -> &[RustTarget] {
+    pub fn dart_native_targets(&self) -> &[RustTarget] {
         self.targets
             .dart
-            .native_architectures
+            .native_targets
             .as_deref()
             .unwrap_or(RustTarget::ALL_DART_NATIVE)
     }
 
     pub fn dart_targets(&self) -> Vec<RustTarget> {
-        self.dart_native_architectures().to_vec()
+        self.dart_native_targets().to_vec()
     }
 }
 
