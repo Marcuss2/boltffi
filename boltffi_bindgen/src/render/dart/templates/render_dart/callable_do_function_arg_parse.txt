@@ -63,7 +63,7 @@ final {{ param.callable_name() }} = $$ffi.NativeCallable<
 {%- endif %}
   final {{ cb_def.returns.storage_name() }} = _$$BoltCallocPtr<$$ffi.Uint8>.allocUnmanaged({{ cb_def.returns.wire_size_expr() }});
   final {{ cb_def.returns.wire_name() }} = _$$BoltWireEncoder(_$$BoltBufWriter.fromSpan({{ cb_def.returns.storage_name() }}.ptr, {{ cb_def.returns.storage_name() }}.len));
-  {{ cb_def.returns.wire_encode_expr() | trim | indent(2, false) }};
+  {{ cb_def.returns.wire_encode_expr() | trim | indent(2, false) }}
   return $$ffi.Struct.create<_$$BoltFFIBuf>()
     ..ptr = {{ cb_def.returns.storage_name() }}.ptr
     ..len = {{ cb_def.returns.wire_name() }}.len

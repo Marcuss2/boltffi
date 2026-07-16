@@ -2,5 +2,5 @@
 pub struct DartCustomType {
     pub name: String,
     pub ty: super::DartType,
-    pub doc: Option<String>
+    pub doc: Option<String>,
 }

@@ -13,7 +13,7 @@ final {{ func.returns.res_name() }} = {{ func_call_expr | trim }}
 {%- endmatch %}
 {%- for param in func.params %}
 {%- if let Some(writeback_expr) = param.writeback_expr() %}
-{{ writeback_expr }};
+{{ writeback_expr }}
 {%- endif %}
 {%- endfor %}
 {%- for param in func.params %}

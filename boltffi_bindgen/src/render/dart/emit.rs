@@ -323,7 +323,7 @@ pub fn primitive_write_method(primitive: PrimitiveType) -> &'static str {
 
 fn emit_write_primitive(primitive: PrimitiveType, writer_name: &str, value: &str) -> String {
     format!(
-        "{}.{}({})",
+        "{}.{}({});",
         writer_name,
         primitive_write_method(primitive),
         value
@@ -338,11 +338,11 @@ fn enum_tag_write_expr(tag_type: PrimitiveType, writer_name: &str, value: &str) 
 
 fn emit_write_builtin(id: &BuiltinId, writer_name: &str, value: &str) -> String {
     match id.as_str() {
-        "Duration" => format!("{}.writeDuration({})", writer_name, value),
-        "SystemTime" => format!("{}.writeInstant({})", writer_name, value),
-        "Uuid" => format!("{}.writeUUID({})", writer_name, value),
-        "Url" => format!("{}.writeUri({})", writer_name, value),
-        _ => format!("{}.writeString({})", writer_name, value),
+        "Duration" => format!("{}.writeDuration({});", writer_name, value),
+        "SystemTime" => format!("{}.writeInstant({});", writer_name, value),
+        "Uuid" => format!("{}.writeUUID({});", writer_name, value),
+        "Url" => format!("{}.writeUri({});", writer_name, value),
+        _ => format!("{}.writeString({});", writer_name, value),
     }
 }
 
@@ -394,12 +394,12 @@ fn emit_writer_vec(
                 | PrimitiveType::F64 => value.to_string(),
             };
 
-            format!("{writer_name}.writeBytes({value})")
+            format!("{writer_name}.writeBytes({value});")
         }
         _ => {
             let inner_write_expr = emit_writer_write(element, writer_name, "_p$item");
             format!(
-                "{writer_name}.writeList({value}, (_p$item, {writer_name}) {{ {}; }})",
+                "{writer_name}.writeList({value}, (_p$item, {writer_name}) {{ {} }});",
                 inner_write_expr
             )
         }
@@ -410,15 +410,15 @@ pub fn emit_writer_write(seq: &WriteSeq, writer_name: &str, value: &str) -> Stri
     match seq.ops.first() {
         Some(WriteOp::Primitive { primitive, .. }) => {
             format!(
-                "{writer_name}.{}({})",
+                "{writer_name}.{}({});",
                 primitive_write_method(*primitive),
                 value,
             )
         }
-        Some(WriteOp::String { .. }) => format!("{writer_name}.writeString({value})"),
+        Some(WriteOp::String { .. }) => format!("{writer_name}.writeString({value});"),
         Some(WriteOp::Builtin { id, .. }) => emit_write_builtin(id, writer_name, value),
-        Some(WriteOp::Record { .. }) => format!("{value}._m$wireEncode({writer_name})",),
-        Some(WriteOp::Enum { .. }) => format!("{value}._m$wireEncode({writer_name})"),
+        Some(WriteOp::Record { .. }) => format!("{value}._m$wireEncode({writer_name});",),
+        Some(WriteOp::Enum { .. }) => format!("{value}._m$wireEncode({writer_name});"),
         Some(WriteOp::Custom { underlying, .. }) => {
             emit_writer_write(underlying, writer_name, value)
         }
@@ -429,20 +429,20 @@ pub fn emit_writer_write(seq: &WriteSeq, writer_name: &str, value: &str) -> Stri
             ..
         }) => emit_writer_vec(value, element_type, element, layout, writer_name),
         Some(WriteOp::Option { some, .. }) => {
-            let inner_write_expr = emit_writer_write(some, writer_name, "_p$value");
+            let inner_write_expr = emit_writer_write(some, writer_name, value);
 
             format!(
-                "{writer_name}.writeOptional({value}, (_p$value, {writer_name}) {{ {inner_write_expr}; }})"
+                r#"if ({value} case final {value}?) {{ {writer_name}.writeU8(1); {inner_write_expr} }} else {{ {writer_name}.writeU8(0); }}"#
             )
         }
         Some(WriteOp::Result { ok, err, .. }) => {
             let err_op = err.ops.first().expect("write ops");
 
             format!(
-                r#"{writer_name}.writeResult({value}, (value, {writer_name}) {{ {}; }}, (value, {writer_name}) {{ {}; }})"#,
+                r#"switch ({value}) {{ case $$BoltResult$Ok(:final value): {{ {writer_name}.writeU8(0); {} }} case $$BoltResult$Err(:final value): {{ {writer_name}.writeU8(1); {} }} }}"#,
                 emit_writer_write(ok, writer_name, "value"),
                 match err_op {
-                    WriteOp::String { .. } => format!("value._m$wireEncode({writer_name})"),
+                    WriteOp::String { .. } => format!("value._m$wireEncode({writer_name});"),
                     _ => emit_writer_write(err, writer_name, "value"),
                 }
             )
@@ -531,7 +531,9 @@ pub fn emit_reader_read(seq: &ReadSeq, reader_name: &str, is_inner_void: bool) -
         },
         ReadOp::Option { some, .. } => {
             let inner_read_expr = emit_reader_read(some, reader_name, is_inner_void);
-            format!("{reader_name}.readOptional(({reader_name}) => {inner_read_expr})")
+            format!(
+                r#"switch ({reader_name}.readU8()) {{ 0 => null, 1 => {inner_read_expr}, (int _l$tag) => throw $$BoltException("Invalid Optional tag: ${{_l$tag}}") }}"#
+            )
         }
         ReadOp::Vec {
             element_type,
@@ -552,12 +554,7 @@ pub fn emit_reader_read(seq: &ReadSeq, reader_name: &str, is_inner_void: bool) -
                 _ => emit_reader_read(err, reader_name, is_inner_void),
             };
             format!(
-                r#"
-{reader_name}.readResult(
-  ({reader_name}) => {ok_expr},
-  ({reader_name}) => {err_expr}
-)
-            "#
+                r#"(switch ({reader_name}.readU8()) {{ 0 => $$BoltResult.ok({ok_expr}), 1 => $$BoltResult.err({err_expr}), (int _l$tag) => throw $$BoltException("Invalid Result tag: ${{_l$tag}}") }})"#
             )
         }
         ReadOp::Builtin { id, .. } => match id.as_str() {
@@ -728,13 +725,13 @@ pub fn emit_cmp_expr(expr_a: &str, expr_b: &str, expr_ty: &DartType) -> String {
             emit_cmp_expr("_l$a", "_l$b", ty)
         ),
         DartType::List(ty) => format!(
-            "_$$BoltUtil.listEquals({}, {}, (_l$a, _l$b) => {})",
+            "_$$BoltUtil.listCompare({}, {}, (_l$a, _l$b) => {})",
             expr_a,
             expr_b,
             emit_cmp_expr("_l$a", "_l$b", ty)
         ),
         DartType::Bytes => format!(
-            "_$$BoltUtil.listEquals({}, {}, (_l$a, _l$b) => _l$a == _l$b)",
+            "_$$BoltUtil.listCompare({}, {}, (_l$a, _l$b) => _l$a == _l$b)",
             expr_a, expr_b
         ),
         DartType::Result { ok, err } => format!(

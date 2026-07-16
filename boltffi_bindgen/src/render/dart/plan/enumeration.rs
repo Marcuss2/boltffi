@@ -56,7 +56,7 @@ pub struct DartEnum {
     pub is_error: bool,
     pub constructors: Vec<super::DartFunction>,
     pub methods: Vec<super::DartFunction>,
-    pub doc: Option<String>
+    pub doc: Option<String>,
 }
 
 impl DartEnum {

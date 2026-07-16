@@ -199,7 +199,7 @@ impl<'a> super::DartLowerer<'a> {
             constructors,
             methods,
             streams,
-            doc: class.doc.clone()
+            doc: class.doc.clone(),
         }
     }
 

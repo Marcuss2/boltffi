@@ -34,6 +34,7 @@ final class {{ record.name }}{% if !record.interfaces.is_empty() %} implements {
 {%- endfor %}
   });
 
+  @pragma('vm:prefer-inline')
   factory {{ record.name }}._m$wireDecode(_$$BoltWireDecoder _p$reader) {
     return {{ record.name }}(
 {%- for field in record.fields %}
@@ -42,16 +43,16 @@ final class {{ record.name }}{% if !record.interfaces.is_empty() %} implements {
     );
   }
 
+  @pragma('vm:prefer-inline')
   void _m$wireEncode(_$$BoltWireEncoder _p$writer) {
 {%- for field in record.fields %}
-    {{ field.wire_encode_expr("_p$writer")|indent(4)|trim }};
+    {{ field.wire_encode_expr("_p$writer")|indent(4)|trim }}
 {%- endfor %}
   }
 
-  int _m$wireEncodedSize() =>
-{%- for field in record.fields %}
-    {{ field.wire_encoded_size_expr() }}{% if !loop.last %} +{% endif %}
-{%- endfor %};
+  @pragma('vm:prefer-inline')
+  int _m$wireEncodedSize() => {% for field in record.fields %}{{ field.wire_encoded_size_expr() }}{% if !loop.last %} + {% endif %}{% endfor %};
+
 {%- match record.blittable_layout %}
 {%- when None -%}
 {%- when Some with (layout) %}
@@ -60,6 +61,7 @@ final class {{ record.name }}{% if !record.interfaces.is_empty() %} implements {
 {%- endfor %}
   static const _k$structSize = {{ layout.struct_size }};
 
+  @pragma('vm:prefer-inline')
   void _m$blittableWrite(_$$BoltBufWriter _p$writer) {
     final l$offset = _p$writer.advance(_k$structSize);
 {%- for field in layout.fields %}
@@ -67,6 +69,7 @@ final class {{ record.name }}{% if !record.interfaces.is_empty() %} implements {
 {%- endfor %}
   }
 
+  @pragma('vm:prefer-inline')
   factory {{ record.name }}._m$blittableRead(_$$BoltBufReader _p$reader) {
     final l$offset = _p$reader.advance(_k$structSize);
     return {{ record.name }}(
@@ -76,6 +79,7 @@ final class {{ record.name }}{% if !record.interfaces.is_empty() %} implements {
     );
   }
 
+  @pragma('vm:prefer-inline')
   static void _m$blittableWriteList(List<{{ record.name }}> _p$values, _$$BoltBufWriter _p$writer) {
     final l$offset = _p$writer.advance(_p$values.length * _k$structSize);
     for (int l$i = 0; l$i < _p$values.length; ++l$i) {
@@ -87,6 +91,7 @@ final class {{ record.name }}{% if !record.interfaces.is_empty() %} implements {
     }
   }
 
+  @pragma('vm:prefer-inline')
   static List<{{ record.name }}> _m$blittableReadList(int _p$lengthInBytes, _$$BoltBufReader _p$reader) {
     final l$offset = _p$reader.advance(_p$lengthInBytes);
     return List.generate(_p$lengthInBytes ~/ _k$structSize, (l$i) {
@@ -99,6 +104,7 @@ final class {{ record.name }}{% if !record.interfaces.is_empty() %} implements {
     });
   }
 
+  @pragma('vm:prefer-inline')
   factory {{ record.name }}._m$fromStruct({{ layout.struct_name }} _p$struct) {
     return {{ record.name }}(
 {%- for field in layout.fields %}
@@ -107,6 +113,7 @@ final class {{ record.name }}{% if !record.interfaces.is_empty() %} implements {
     );
   }
 
+  @pragma('vm:prefer-inline')
   {{ layout.struct_name }} _m$toStruct() {
     return $$ffi.Struct.create<{{ layout.struct_name }}>()
 {%- for field in layout.fields %}

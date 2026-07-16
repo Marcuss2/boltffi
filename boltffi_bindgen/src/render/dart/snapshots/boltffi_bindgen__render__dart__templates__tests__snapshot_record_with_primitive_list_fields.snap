@@ -2,6 +2,7 @@
 source: boltffi_bindgen/src/render/dart/templates.rs
 expression: template.render().unwrap()
 ---
+
 final class PrimitiveLists {
   $$typed_data.Uint8List u8s;
   $$typed_data.Int8List i8s;
@@ -29,6 +30,7 @@ final class PrimitiveLists {
     required this.bools,
   });
 
+  @pragma('vm:prefer-inline')
   factory PrimitiveLists._m$wireDecode(_$$BoltWireDecoder _p$reader) {
     return PrimitiveLists(
       u8s: _p$reader.readUint8List(),
@@ -45,6 +47,7 @@ final class PrimitiveLists {
     );
   }
 
+  @pragma('vm:prefer-inline')
   void _m$wireEncode(_$$BoltWireEncoder _p$writer) {
     _p$writer.writeBytes(u8s);
     _p$writer.writeBytes(i8s);
@@ -59,18 +62,8 @@ final class PrimitiveLists {
     _p$writer.writeBytes(bools._bytes);
   }
 
-  int _m$wireEncodedSize() =>
-    (4 + u8s.length) +
-    (4 + (i8s.length * 1)) +
-    (4 + (u16s.length * 2)) +
-    (4 + (i16s.length * 2)) +
-    (4 + (u32s.length * 4)) +
-    (4 + (i32s.length * 4)) +
-    (4 + (u64s.length * 8)) +
-    (4 + (i64s.length * 8)) +
-    (4 + (f32s.length * 4)) +
-    (4 + (f64s.length * 8)) +
-    (4 + (bools.length * 1));
+  @pragma('vm:prefer-inline')
+  int _m$wireEncodedSize() => (4 + u8s.length) + (4 + (i8s.length * 1)) + (4 + (u16s.length * 2)) + (4 + (i16s.length * 2)) + (4 + (u32s.length * 4)) + (4 + (i32s.length * 4)) + (4 + (u64s.length * 8)) + (4 + (i64s.length * 8)) + (4 + (f32s.length * 4)) + (4 + (f64s.length * 8)) + (4 + (bools.length * 1));
 
   @override
   int get hashCode {
@@ -93,6 +86,6 @@ final class PrimitiveLists {
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
 
-    return other is PrimitiveLists && _$$BoltUtil.listEquals(u8s, other.u8s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listEquals(i8s, other.i8s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listEquals(u16s, other.u16s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listEquals(i16s, other.i16s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listEquals(u32s, other.u32s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listEquals(i32s, other.i32s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listEquals(u64s, other.u64s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listEquals(i64s, other.i64s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listEquals(f32s, other.f32s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listEquals(f64s, other.f64s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listEquals(bools, other.bools, (_l$a, _l$b) => _l$a == _l$b);
+    return other is PrimitiveLists && _$$BoltUtil.listCompare(u8s, other.u8s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listCompare(i8s, other.i8s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listCompare(u16s, other.u16s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listCompare(i16s, other.i16s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listCompare(u32s, other.u32s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listCompare(i32s, other.i32s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listCompare(u64s, other.u64s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listCompare(i64s, other.i64s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listCompare(f32s, other.f32s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listCompare(f64s, other.f64s, (_l$a, _l$b) => _l$a == _l$b) && _$$BoltUtil.listCompare(bools, other.bools, (_l$a, _l$b) => _l$a == _l$b);
   }
 }

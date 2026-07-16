@@ -340,7 +340,7 @@ impl DartFunctionParam {
         };
 
         format!(
-            "{}({})",
+            "{}({});",
             write,
             args.into_iter()
                 .reduce(|acc, s| acc + ", " + s.as_str())
@@ -427,7 +427,7 @@ impl DartFunctionParam {
         };
 
         format!(
-            "{}({})",
+            "{}({});",
             write,
             args.into_iter()
                 .reduce(|acc, s| acc + ", " + s.as_str())
@@ -461,7 +461,7 @@ impl DartFunctionParam {
                 };
 
                 Some(format!(
-                    "{value_bytes}.setRange(0, {name}.length, {storage}.ptr.cast<{native_type}>().asTypedList({name}.length))",
+                    "{value_bytes}.setRange(0, {name}.length, {storage}.ptr.cast<{native_type}>().asTypedList({name}.length));",
                     name = self.name,
                     storage = self.storage_name(),
                     native_type = primitive.native_type(),
@@ -894,7 +894,7 @@ pub struct DartFunction {
     pub sig: super::DartFunctionSig,
     pub params: Vec<DartFunctionParam>,
     pub returns: DartFunctionReturns,
-    pub doc: Option<String>
+    pub doc: Option<String>,
 }
 
 impl DartFunction {
@@ -966,7 +966,7 @@ impl DartFunction {
                 match owner {
                     DartFunctionCallOwner::Class(..) => None,
                     DartFunctionCallOwner::Record(..) | DartFunctionCallOwner::Enum(..) => {
-                        Some(format!("_m$wireEncode({})", self.self_wire_name()))
+                        Some(format!("_m$wireEncode({});", self.self_wire_name()))
                     }
                 }
             }

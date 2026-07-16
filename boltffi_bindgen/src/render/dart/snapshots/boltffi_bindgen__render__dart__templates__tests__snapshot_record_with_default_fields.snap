@@ -20,6 +20,7 @@ final class Vector {
     required this.y,
   });
 
+  @pragma('vm:prefer-inline')
   factory Vector._m$wireDecode(_$$BoltWireDecoder _p$reader) {
     return Vector(
       x: _p$reader.readF64(),
@@ -28,16 +29,15 @@ final class Vector {
     );
   }
 
+  @pragma('vm:prefer-inline')
   void _m$wireEncode(_$$BoltWireEncoder _p$writer) {
     _p$writer.writeF64(x);
     _p$writer.writeF64(y);
     _p$writer.writeF64(z);
   }
 
-  int _m$wireEncodedSize() =>
-    8 +
-    8 +
-    8;
+  @pragma('vm:prefer-inline')
+  int _m$wireEncodedSize() => 8 + 8 + 8;
 
   @override
   int get hashCode {

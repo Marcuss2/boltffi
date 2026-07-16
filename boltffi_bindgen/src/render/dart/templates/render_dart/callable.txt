@@ -33,7 +33,7 @@ static {{ owner.name() }}{% if is_optional %}?{% endif %} {{ ctor_name }}
 {%- filter indent(2) %}{%- include "callable_do_function_arg_parse.txt" %}{%- endfilter %}
 {%- endfor %}
 {%- if let Some(self_wire_encode_expr) = func.self_wire_encode_expr() %}
-  {{ self_wire_encode_expr|indent(2)|trim }};
+  {{ self_wire_encode_expr|indent(2)|trim }}
 {%- endif %}
 {%- for param in func.params %}
 {%- filter indent(2) %}{%- include "callable_do_function_arg_write.txt" %}{%- endfilter %}

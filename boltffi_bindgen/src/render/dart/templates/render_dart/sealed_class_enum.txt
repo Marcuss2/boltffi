@@ -20,6 +20,7 @@ sealed class {{ dart_enum.name }}{% if dart_enum.is_error %} implements Exceptio
 {%- endif -%}
   ) = {{ variant.class_name }};
 {% endfor %}
+  @pragma('vm:prefer-inline')
   factory {{ dart_enum.name }}._m$wireDecode(_$$BoltWireDecoder _p$reader) {
     final l$tag = _p$reader.readI32();
 
@@ -35,6 +36,7 @@ sealed class {{ dart_enum.name }}{% if dart_enum.is_error %} implements Exceptio
     };
   }
 
+  @pragma('vm:prefer-inline')
   int _m$wireEncodedSize() => 4 + switch (this) {
 {%- for variant in dart_enum.variants %}
     {{ variant.class_name }}(
@@ -50,6 +52,7 @@ sealed class {{ dart_enum.name }}{% if dart_enum.is_error %} implements Exceptio
 {%- endfor %}
   };
 
+  @pragma('vm:prefer-inline')
   void _m$wireEncode(_$$BoltWireEncoder _p$writer) {
     switch (this) {
 {%- for variant in dart_enum.variants %}
@@ -60,7 +63,7 @@ sealed class {{ dart_enum.name }}{% if dart_enum.is_error %} implements Exceptio
       ):
         _p$writer.writeI32({{ loop.index0 }});
 {%- for field in variant.fields %}
-        {{ field.wire_encode_expr("_p$writer")|indent(8)|trim }};
+        {{ field.wire_encode_expr("_p$writer")|indent(8)|trim }}
 {%- endfor %}
 {%- endfor %}
     }

@@ -233,7 +233,7 @@ final class $$BoltBoolList extends $$collection.ListBase<bool> {
 
 abstract final class _$$BoltUtil {
   @pragma('vm:prefer-inline')
-  static bool listEquals<T>(List<T> a, List<T> b, bool Function(T, T) cmp) {
+  static bool listCompare<T>(List<T> a, List<T> b, bool Function(T, T) cmp) {
     if (identical(a, b)) return true;
     if (a.length != b.length) return false;
     for (int i = 0; i < a.length; ++i) {
@@ -258,6 +258,7 @@ abstract final class _$$BoltUtil {
     return comparer(a, b);
   }
 
+  @pragma('vm:prefer-inline')
   static bool fallibleCompare<T, E extends Exception>($$BoltResult<T, E> a, $$BoltResult<T, E> b, bool Function(T, T) okCompare, bool Function(E, E) errCompare) {
     if (identical(a, b)) return true;
     return switch ((a, b)) {
@@ -284,7 +285,6 @@ abstract final class _$$BoltUtil {
     48, 49, 50, 51, 52, 53, 54, 55, 56, 57, // 0-9
     97, 98, 99, 100, 101, 102               // a-f
   ]);
-
 }
 
 final class $$BoltUUIDValue {
@@ -526,9 +526,10 @@ extension type _$$BoltWireEncoder(_$$BoltBufWriter writer) {
     List<T> v,
     void Function(T item, _$$BoltWireEncoder encoder) onItem,
   ) {
-    writeU32(v.length);
-    for (final item in v) {
-      onItem(item, _$$BoltWireEncoder(writer));
+    final len = v.length;
+    writeU32(len);
+    for (int i = 0; i < len; ++i) {
+      onItem(v[i], _$$BoltWireEncoder(writer));
     }
   }
 
@@ -561,35 +562,6 @@ extension type _$$BoltWireEncoder(_$$BoltBufWriter writer) {
   void writeUUID($$BoltUUIDValue v) {
     writeU64(v.highBits);
     writeU64(v.lowBits);
-  }
-
-  @pragma('vm:prefer-inline')
-  void writeOptional<T>(
-    T? value,
-    void Function(T value, _$$BoltWireEncoder encoder) onSome,
-  ) {
-    if (value == null) {
-      writeU8(0);
-    } else {
-      writeU8(1);
-      onSome(value, _$$BoltWireEncoder(writer));
-    }
-  }
-
-  @pragma('vm:prefer-inline')
-  void writeResult<T, E extends Exception>(
-    $$BoltResult<T, E> value,
-    void Function(T value, _$$BoltWireEncoder encoder) onOk,
-    void Function(E value, _$$BoltWireEncoder encoder) onErr,
-  ) {
-    switch (value) {
-      case $$BoltResult$Ok<T, E>(:final value):
-        writeU8(0);
-        onOk(value, _$$BoltWireEncoder(writer));
-      case $$BoltResult$Err<T, E>(:final value):
-        writeU8(1);
-        onErr(value, _$$BoltWireEncoder(writer));
-    }
   }
 }
 
@@ -816,8 +788,7 @@ extension type _$$BoltWireDecoder(_$$BoltBufReader reader) {
 
   @pragma('vm:prefer-inline')
   List<T> readList<T>(T Function(_$$BoltWireDecoder decoder) readValue) {
-    final len = readU32();
-    return List.generate(len, (_) => readValue(_$$BoltWireDecoder(reader)));
+    return List.generate(readU32(), (_) => readValue(_$$BoltWireDecoder(reader)));
   }
 
   @pragma('vm:prefer-inline')
@@ -843,29 +814,6 @@ extension type _$$BoltWireDecoder(_$$BoltBufReader reader) {
   @pragma('vm:prefer-inline')
   $$BoltUUIDValue readUUID() {
     return $$BoltUUIDValue(readU64(), readU64());
-  }
-
-  @pragma('vm:prefer-inline')
-  T? readOptional<T>(T Function(_$$BoltWireDecoder decoder) onSome) {
-    final tag = readU8();
-    return switch (tag) {
-      0 => null,
-      1 => onSome(_$$BoltWireDecoder(reader)),
-      _ => throw $$BoltException("Invalid Optional tag: $tag"),
-    };
-  }
-
-  @pragma('vm:prefer-inline')
-  $$BoltResult<T, E> readResult<T, E extends Exception>(
-    T Function(_$$BoltWireDecoder decoder) onOk,
-    E Function(_$$BoltWireDecoder decoder) onErr,
-  ) {
-    final tag = readU8();
-    return switch (tag) {
-      0 => $$BoltResult.ok(onOk(_$$BoltWireDecoder(reader))),
-      1 => $$BoltResult.err(onErr(_$$BoltWireDecoder(reader))),
-      _ => throw $$BoltException("Invalid Result tag: $tag"),
-    };
   }
 }
 
