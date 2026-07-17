@@ -85,10 +85,11 @@ mod tests {
 
     use crate::{
         ir::{
-            self, CallbackId, CallbackKind, CallbackMethodDef, CallbackTraitDef, ClassDef, ClassId,
-            ConstructorDef, DefaultValue, FfiContract, FieldDef, FieldName, MethodDef, MethodId,
-            PackageInfo, ParamDef, ParamName, ParamPassing, PrimitiveType, Receiver, RecordDef,
-            RecordId, ReturnDef, StreamDef, StreamId, StreamMode, TypeExpr,
+            self, CStyleVariant, CallbackId, CallbackKind, CallbackMethodDef, CallbackTraitDef,
+            ClassDef, ClassId, ConstructorDef, DefaultValue, EnumDef, EnumId, EnumRepr,
+            FfiContract, FieldDef, FieldName, MethodDef, MethodId, PackageInfo, ParamDef,
+            ParamName, ParamPassing, PrimitiveType, Receiver, RecordDef, RecordId, ReturnDef,
+            StreamDef, StreamId, StreamMode, TypeExpr, VariantName,
         },
         render::dart::{DartLibrary, DartLowerer},
     };
@@ -170,6 +171,32 @@ mod tests {
         }
     }
 
+    fn generic_status_c_enum_def() -> EnumDef {
+        EnumDef {
+            id: EnumId::new("Status"),
+            repr: EnumRepr::CStyle {
+                tag_type: PrimitiveType::I32,
+                variants: vec![
+                    CStyleVariant {
+                        name: VariantName::new("Active"),
+                        discriminant: 0,
+                        doc: None,
+                    },
+                    CStyleVariant {
+                        name: VariantName::new("Inactive"),
+                        discriminant: 1,
+                        doc: None,
+                    },
+                ],
+            },
+            is_error: false,
+            constructors: vec![],
+            methods: vec![],
+            doc: None,
+            deprecated: None,
+        }
+    }
+
     #[test]
     pub fn snapshot_sync_callback() {
         let mut ffi = empty_contract();
@@ -202,6 +229,8 @@ mod tests {
     pub fn snapshot_class() {
         let mut ffi = empty_contract();
 
+        ffi.catalog.insert_enum(generic_status_c_enum_def());
+
         let temperature_stream = |mode: StreamMode| StreamDef {
             id: StreamId::new(format!(
                 "temperature_event_{}",
@@ -232,6 +261,21 @@ mod tests {
             deprecated: None,
         };
 
+        let status_stream = |mode: StreamMode| StreamDef {
+            id: StreamId::new(format!(
+                "status_event_{}",
+                match mode {
+                    StreamMode::Async => "async",
+                    StreamMode::Batch => "batch",
+                    StreamMode::Callback => "callback",
+                }
+            )),
+            item_type: TypeExpr::Enum(EnumId::new("Status")),
+            mode,
+            doc: None,
+            deprecated: None,
+        };
+
         let mut streams = vec![];
         streams.extend(
             [StreamMode::Async, StreamMode::Batch, StreamMode::Callback]
@@ -242,6 +286,11 @@ mod tests {
             [StreamMode::Async, StreamMode::Batch, StreamMode::Callback]
                 .into_iter()
                 .map(names_stream),
+        );
+        streams.extend(
+            [StreamMode::Async, StreamMode::Batch, StreamMode::Callback]
+                .into_iter()
+                .map(status_stream),
         );
 
         ffi.catalog.insert_class(ClassDef {

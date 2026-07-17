@@ -26,7 +26,7 @@ impl DartStream {
         emit::emit_reader_read(&self.item_read_seq, wire_name, self.item_ty.is_inner_void())
     }
 
-    pub fn item_array_read_expr(&self, reader_name: &str, count: &str) -> String {
+    pub fn item_array_read_expr(&self, reader_name: &str, bytes_len: &str) -> String {
         let DartFFIValuePassing::Value(value) = &self.item_passing else {
             panic!("value passsing")
         };
@@ -34,7 +34,7 @@ impl DartStream {
         match value {
             DartFFIParamValue::Primitive(primitive) => match primitive {
                 crate::render::dart::DartFFIPrimitiveType::Bool => format!(
-                    "$$BoltBoolList._m$fromUint8List({reader}.readUint8List({count}, 0))",
+                    "$$BoltBoolList._m$fromUint8List({reader}.readUint8List({bytes_len}, 0))",
                     reader = reader_name
                 ),
                 crate::render::dart::DartFFIPrimitiveType::Int(int) => {
@@ -49,7 +49,14 @@ impl DartStream {
                         super::DartFFIIntType::Int64 | super::DartFFIIntType::IntPtr => "Int64",
                     };
 
-                    format!("{reader}.read{verb}List({count}, 0)", reader = reader_name)
+                    let mut s = format!(
+                        "{reader}.read{verb}List({bytes_len}, 0)",
+                        reader = reader_name
+                    );
+                    if let super::DartType::Enum(class) = &self.item_ty {
+                        s.push_str(format!(".map({class}._m$fromDiscriminant)").as_str());
+                    }
+                    s
                 }
                 crate::render::dart::DartFFIPrimitiveType::Float(float) => {
                     let verb = match float {
@@ -57,12 +64,15 @@ impl DartStream {
                         super::DartFFIFloatType::Float64 => "Float64",
                     };
 
-                    format!("{reader}.read{verb}List({count}, 0)", reader = reader_name)
+                    format!(
+                        "{reader}.read{verb}List({bytes_len}, 0)",
+                        reader = reader_name
+                    )
                 }
             },
             DartFFIParamValue::Record(record) => {
                 format!(
-                    "{record}._m$blittableReadList({count} * {record}._k$structSize, {reader})",
+                    "{record}._m$blittableReadList({bytes_len}, {reader})",
                     reader = reader_name
                 )
             }

@@ -158,7 +158,7 @@ final class {{ class.name }} implements $$ffi.Finalizable {
 {%- when None %}
       final l$buf = _f${{ stream.pop_batch_fn.symbol }}(handle, batchSize);
       if (l$buf.len == 0) {
-        return;
+        return [];
       }
       final l$bufWire = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(l$buf.ptr, l$buf.len));
       final l$items = l$bufWire.readList((l$bufWire) => {{ stream.item_wire_decode_expr("l$bufWire") }});

@@ -151,6 +151,11 @@ _f${{ method.name }}(_handle.handle{% if !method.get_proxy_ffi_params().is_empty
 {%- when _ -%}
 {%- endmatch %}
 {%- for param in method.params %}
+{%- if let Some(writeback_expr) = param.writeback_expr() %}
+{{ writeback_expr }}
+{%- endif %}
+{%- endfor %}
+{%- for param in method.params %}
 {%- filter indent(4) %}{% include "callable_do_function_arg_storage_release.txt" %}{%- endfilter %}
 {%- endfor %}
     if (_l$outStatus.ptr.value != 0) {

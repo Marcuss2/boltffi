@@ -205,7 +205,7 @@ impl DartFunctionParam {
                 DartFFIParamValue::Primitive(primitive) => match primitive {
                     super::DartFFIPrimitiveType::Bool => {
                         format!(
-                            "_$$BoltFFIBoolList._m$fromUint8List({}.asTypedList({}).sublist(0).buffer.asUint8List())",
+                            "_$$BoltBoolList._m$fromUint8List({}.asTypedList({}).sublist(0).buffer.asUint8List())",
                             self.ffi_param_ptr_name(),
                             self.ffi_param_len_name()
                         )
