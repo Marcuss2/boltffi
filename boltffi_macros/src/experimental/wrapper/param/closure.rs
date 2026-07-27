@@ -1406,10 +1406,7 @@ impl ClosureBinding {
                     }
                     (None, None) => None,
                     _ => {
-                        ::boltffi::__private::set_last_error(format!(
-                            "{}: invalid nullable closure registration",
-                            stringify!(#ident)
-                        ));
+                        ::boltffi::__private::set_last_error(concat!(stringify!(#ident), ": invalid nullable closure registration"));
                         #failure
                     }
                 };
@@ -1429,10 +1426,7 @@ impl ClosureBinding {
         match self {
             Self::ImplTrait(_) => Ok(quote! {
                 if #ident == 0 {
-                    ::boltffi::__private::set_last_error(format!(
-                        "{}: null closure handle",
-                        stringify!(#ident)
-                    ));
+                    ::boltffi::__private::set_last_error(concat!(stringify!(#ident), ": null closure handle"));
                     #failure
                 }
                 let #owner = ::boltffi::__private::WasmCallbackOwner::new(#ident, #free);
@@ -1442,10 +1436,7 @@ impl ClosureBinding {
             }),
             Self::Boxed(_, ty) => Ok(quote! {
                 if #ident == 0 {
-                    ::boltffi::__private::set_last_error(format!(
-                        "{}: null closure handle",
-                        stringify!(#ident)
-                    ));
+                    ::boltffi::__private::set_last_error(concat!(stringify!(#ident), ": null closure handle"));
                     #failure
                 }
                 let #owner = ::boltffi::__private::WasmCallbackOwner::new(#ident, #free);
