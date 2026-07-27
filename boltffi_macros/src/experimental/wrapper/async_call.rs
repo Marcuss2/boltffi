@@ -728,7 +728,7 @@ impl PlainComplete {
                     err_body: carrier.zero().clone(),
                 })
             }
-            ReturnPlan::ScalarOptionViaReturnSlot { primitive } => {
+            ReturnPlan::ScalarOptionViaReturnSlot { primitive, .. } => {
                 source.scalar_option(*primitive)?;
                 let optional = <scalar_option::Renderer as Render<S, _>>::render(
                     scalar_option::Renderer,

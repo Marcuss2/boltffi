@@ -56,6 +56,14 @@ pub trait Direction:
     + serde::Serialize
     + for<'de> serde::Deserialize<'de>
 {
+    /// Whether a value in this direction is produced by Rust.
+    ///
+    /// `true` for [`OutOfRust`], where Rust returns the value; `false`
+    /// for [`IntoRust`], where foreign code produces it (a callback
+    /// return). Specializations that only one side implements gate on
+    /// this so the two sides cannot disagree on the ABI.
+    const PRODUCED_BY_RUST: bool;
+
     /// The codec the IR stores at an encoded crossing in this
     /// direction.
     ///
@@ -150,6 +158,8 @@ pub trait Direction:
 }
 
 impl Direction for IntoRust {
+    const PRODUCED_BY_RUST: bool = false;
+
     type Codec = WritePlan;
     type Receive = Receive;
     type ClosureRegistrationShape<S: Surface> = S::IncomingClosureRegistration;
@@ -185,6 +195,8 @@ impl Direction for IntoRust {
 }
 
 impl Direction for OutOfRust {
+    const PRODUCED_BY_RUST: bool = true;
+
     type Codec = ReadPlan;
     type Receive = ();
     type ClosureRegistrationShape<S: Surface> = S::OutgoingClosureRegistration;

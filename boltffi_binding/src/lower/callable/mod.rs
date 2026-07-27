@@ -64,11 +64,11 @@ use boltffi_ast::{
 use crate::{
     ClosureForm, ClosureParameter, ClosureRegistration, ClosureReturn, ClosureSignature,
     DirectVectorElementType, Direction, ExecutionDecl, ExportedCallable, ForeignBody,
-    HandlePresence, ImportedCallable, IntoRust, OutOfRust, Primitive, Receive, RustBody,
+    HandlePresence, ImportedCallable, IntoRust, OutOfRust, Primitive, Receive, RustBody, TypeRef,
 };
 
 use super::{
-    LowerError, codecs, error::UnsupportedType, ids::DeclarationIds, index::Index, records,
+    LowerError, codecs, enums, error::UnsupportedType, ids::DeclarationIds, index::Index, records,
     surface::SurfaceLower, symbol::SymbolAllocator,
 };
 
@@ -158,17 +158,32 @@ impl<'src> CallableOwner<'src> {
 }
 
 enum ValueSpecialization {
-    ScalarOption(Primitive),
+    ScalarOption(Primitive, Option<TypeRef>),
     DirectVector(DirectVectorElementType),
 }
 
 impl ValueSpecialization {
-    fn from_type_expr<S: SurfaceLower>(
+    fn from_return<S: SurfaceLower, D: Direction>(
         index: &Index,
         ids: &DeclarationIds,
         type_expr: &TypeExpr,
     ) -> Result<Option<Self>, LowerError> {
-        Self::from_parameter::<S>(index, ids, type_expr, Receive::ByValue)
+        if let Some(specialized) =
+            Self::from_parameter::<S>(index, ids, type_expr, Receive::ByValue)?
+        {
+            return Ok(Some(specialized));
+        }
+        // Returns produced by Rust additionally fold an optional C-style enum
+        // into the scalar slot. Params keep the wire encoding, and so do
+        // callback returns, whose Rust side still decodes a buffer.
+        let TypeExpr::Option(inner) = type_expr else {
+            return Ok(None);
+        };
+        if !D::PRODUCED_BY_RUST {
+            return Ok(None);
+        }
+        Ok(Self::scalar_option_enum::<S>(index, ids, inner)?
+            .map(|(primitive, target)| Self::ScalarOption(primitive, Some(target))))
     }
 
     fn from_parameter<S: SurfaceLower>(
@@ -180,7 +195,7 @@ impl ValueSpecialization {
         match (type_expr, receive) {
             (TypeExpr::Option(inner), Receive::ByValue) => Ok(Self::primitive(inner)
                 .and_then(S::scalar_option)
-                .map(Self::ScalarOption)),
+                .map(|primitive| Self::ScalarOption(primitive, None))),
             (TypeExpr::Vec(inner), Receive::ByValue) => {
                 Self::direct_vector_element(index, ids, inner)
                     .map(|element| element.map(Self::DirectVector))
@@ -192,6 +207,25 @@ impl ValueSpecialization {
             }
             _ => Ok(None),
         }
+    }
+
+    /// A C-style enum crosses as its discriminant, so an `Option` of one can
+    /// ride the scalar slot instead of being wire-encoded.
+    fn scalar_option_enum<S: SurfaceLower>(
+        index: &Index,
+        ids: &DeclarationIds,
+        type_expr: &TypeExpr,
+    ) -> Result<Option<(Primitive, TypeRef)>, LowerError> {
+        let TypeExpr::Enum { id, .. } = type_expr else {
+            return Ok(None);
+        };
+        let Some(repr) = index.enumeration(id).and_then(enums::c_style_repr) else {
+            return Ok(None);
+        };
+        let Some(primitive) = S::scalar_option_enum(repr) else {
+            return Ok(None);
+        };
+        Ok(Some((primitive, TypeRef::Enum(ids.enumeration(id)?))))
     }
 
     fn primitive(type_expr: &TypeExpr) -> Option<Primitive> {
