@@ -188,3 +188,15 @@ final class AsyncResultFormatterImpl implements AsyncResultFormatter {
     return Future.value(Point(x: point.x + 500.0, y: point.y + 600.0));
   }
 }
+
+final class DataProviderImpl implements DataProvider {
+  @override
+  int getCount() {
+    return 5;
+  }
+
+  @override
+  DataPoint getItem(int index) {
+    return DataPoint(x: 1.0 * index, y: 1.0 * index, timestamp: 0);
+  }
+}

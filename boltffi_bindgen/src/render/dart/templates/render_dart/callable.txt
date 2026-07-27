@@ -25,6 +25,15 @@ static {{ owner.name() }}{% if is_optional %}?{% endif %} {{ ctor_name }}
   {{ arg.ty.dart_type() }} {{ arg.name }}{% if !loop.last %}, {% endif %}
 {%- endfor -%}
 ) {
+{%- match func.ty %}
+{%- when super::DartFunctionType::Method with { name: meth_name, receiver, owner } %}
+{%- match (receiver, owner) %}
+{%- when (super::DartMethodReceiver::ReceiverPassing(_), super::DartFunctionCallOwner::Class(_)) %}
+  _f$throwIfDisposed();
+{%- when _ -%}
+{%- endmatch %}
+{%- when _ -%}
+{%- endmatch %}
 {%- if let Some(self_wire_size) = func.self_wire_size() %}
   final {{ func.self_storage_name() }} = _$$BoltCallocPtr<$$ffi.Uint8>.alloc({{ self_wire_size }});
   final {{ func.self_wire_name() }} = _$$BoltWireEncoder(_$$BoltBufWriter.fromSpan({{ func.self_storage_name() }}.ptr, {{ func.self_storage_name() }}.len));

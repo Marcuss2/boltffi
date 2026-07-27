@@ -1,6 +1,6 @@
 @$$ffi.Native<
   $$ffi.Void Function($$ffi.Pointer<$$ffi.Void>)
->(symbol: '{{ class.free_symbol }}', isLeaf: true)
+>(symbol: '{{ class.free_symbol }}')
 external void _f${{ class.free_symbol }}($$ffi.Pointer<$$ffi.Void> handle);
 {%- for func in class.constructors %}
 {% include "extern_function.txt" %}
@@ -25,15 +25,27 @@ external void _f${{ class.free_symbol }}($$ffi.Pointer<$$ffi.Void> handle);
 {% if let Some(doc) = class.doc %}
 {{ super::to_dart_doc(doc) }}
 {%- endif %}
-final class {{ class.name }} implements $$ffi.Finalizable {
-  static final _finalizer = $$ffi.NativeFinalizer(
-    $$ffi.Native.addressOf(_f${{ class.free_symbol }})
-  );
+final class {{ class.name }} {
+  static final _finalizer = Finalizer<$$ffi.Pointer<$$ffi.Void>>((_p$ptr) {
+    _f${{ class.free_symbol }}(_p$ptr);
+  });
 
-  final $$ffi.Pointer<$$ffi.Void> _handle;
+  $$ffi.Pointer<$$ffi.Void> _handle;
 
   {{ class.name }}._(this._handle) {
     _finalizer.attach(this, _handle, detach: this);
+  }
+
+  void dispose$() {
+    _finalizer.detach(this);
+    _f${{ class.free_symbol }}(_handle);
+    _handle = $$ffi.nullptr;
+  }
+
+  void _f$throwIfDisposed() {
+    if (_handle == $$ffi.nullptr) {
+      throw $$BoltException("Object has been disposed");
+    }
   }
 {% for func in class.constructors %}
 {%- filter indent(2, true) %}

@@ -4,7 +4,7 @@ expression: template.render().unwrap()
 ---
 @$$ffi.Native<
   $$ffi.Void Function($$ffi.Pointer<$$ffi.Void>)
->(symbol: 'boltffi_person_free', isLeaf: true)
+>(symbol: 'boltffi_person_free')
 external void _f$boltffi_person_free($$ffi.Pointer<$$ffi.Void> handle);
 
 @$$ffi.Native<
@@ -298,15 +298,27 @@ external void _f$boltffi_person_status_event_callback_unsubscribe($$ffi.Pointer<
 external void _f$boltffi_person_status_event_callback_free($$ffi.Pointer<$$ffi.Void> handle);
 
 /// Generic `Person` Class
-final class Person implements $$ffi.Finalizable {
-  static final _finalizer = $$ffi.NativeFinalizer(
-    $$ffi.Native.addressOf(_f$boltffi_person_free)
-  );
+final class Person {
+  static final _finalizer = Finalizer<$$ffi.Pointer<$$ffi.Void>>((_p$ptr) {
+    _f$boltffi_person_free(_p$ptr);
+  });
 
-  final $$ffi.Pointer<$$ffi.Void> _handle;
+  $$ffi.Pointer<$$ffi.Void> _handle;
 
   Person._(this._handle) {
     _finalizer.attach(this, _handle, detach: this);
+  }
+
+  void dispose$() {
+    _finalizer.detach(this);
+    _f$boltffi_person_free(_handle);
+    _handle = $$ffi.nullptr;
+  }
+
+  void _f$throwIfDisposed() {
+    if (_handle == $$ffi.nullptr) {
+      throw $$BoltException("Object has been disposed");
+    }
   }
 
   factory Person(String name, int age) {
@@ -331,6 +343,7 @@ final class Person implements $$ffi.Finalizable {
 
   /// Person.getName(...)
   String getName() {
+    _f$throwIfDisposed();
     final _l$resBuf = _f$boltffi_person_get_name(_handle);
     final _l$resWire = _$$BoltWireDecoder(_$$BoltBufReader.fromSpan(_l$resBuf.ptr, _l$resBuf.len));
     final _l$res = _l$resWire.readString();
