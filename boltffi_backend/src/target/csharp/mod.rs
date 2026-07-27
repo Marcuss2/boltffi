@@ -1064,8 +1064,9 @@ mod tests {
 
         assert!(source.contains("public static Color Black"));
         assert!(source.contains("public const byte ChannelCount = 4;"));
-        assert!(mode.contains("Default = Fast"));
+        assert!(!mode.contains("Default = Fast"));
         assert!(mode.contains("public static class ModeConstants"));
+        assert!(mode.contains("public const global::Demo.Mode Default = global::Demo.Mode.Fast;"));
         assert!(mode.contains("public static Mode Fallback"));
         assert!(mode.contains("public const byte VariantCount = 2;"));
         assert!(palette.contains("public const byte MaxColors = 16;"));
@@ -1074,7 +1075,7 @@ mod tests {
     }
 
     #[test]
-    fn csharp_target_omits_redundant_enum_aliases_after_name_normalization() {
+    fn csharp_target_routes_variant_alias_constants_through_companion_class() {
         let bindings = bindings(
             r#"
             #[repr(u8)]
@@ -1097,7 +1098,10 @@ mod tests {
 
         assert!(mode.contains("Default = 1"));
         assert!(!mode.contains("Default = Default"));
-        assert!(!mode.contains("ModeConstants"));
+        assert!(mode.contains("public static class ModeConstants"));
+        assert!(
+            mode.contains("public const global::Demo.Mode Default = global::Demo.Mode.Default;")
+        );
     }
 
     #[test]
