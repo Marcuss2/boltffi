@@ -32,7 +32,7 @@ pub struct Constant {
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum Body {
     Inline(Expression),
-    Accessor { holder: Identifier, call: Box<Call> },
+    Accessor(Box<Call>),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -80,10 +80,6 @@ impl Constant {
                     format!("__boltffiReadConstant{}", declaration.id().raw()),
                     version,
                 )?;
-                let holder = Identifier::parse_for(
-                    format!("__BoltffiConstantHolder{}", declaration.id().raw()),
-                    version,
-                )?;
                 let accessor = Call::from_constant_accessor(
                     helper,
                     symbol,
@@ -100,10 +96,7 @@ impl Constant {
                 Ok(Self {
                     name,
                     ty,
-                    body: Body::Accessor {
-                        holder,
-                        call: Box::new(accessor),
-                    },
+                    body: Body::Accessor(Box::new(accessor)),
                     doc,
                 })
             }
@@ -161,7 +154,7 @@ impl Constant {
     }
 
     pub fn extend(&self, emitted: Emitted) -> Result<Emitted> {
-        let Body::Accessor { call, .. } = &self.body else {
+        let Body::Accessor(call) = &self.body else {
             return Ok(emitted);
         };
         let emitted = call
@@ -200,14 +193,7 @@ impl Constant {
     pub fn accessor(&self) -> Option<&Call> {
         match &self.body {
             Body::Inline(_) => None,
-            Body::Accessor { call, .. } => Some(call),
-        }
-    }
-
-    pub fn holder(&self) -> Option<&Identifier> {
-        match &self.body {
-            Body::Inline(_) => None,
-            Body::Accessor { holder, .. } => Some(holder),
+            Body::Accessor(call) => Some(call),
         }
     }
 
