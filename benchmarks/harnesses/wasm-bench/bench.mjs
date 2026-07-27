@@ -6,14 +6,11 @@ const boltffiOverlay = await import('./build/generated/boltffi/node.js');
 await boltffiOverlay.initialized;
 const boltffiDemo = await import('./build/generated/boltffi-demo/node.js');
 await boltffiDemo.initialized;
-const boltffi = new Proxy(boltffiOverlay, {
-  get(target, property, receiver) {
-    if (Reflect.has(target, property)) {
-      return Reflect.get(target, property, receiver);
-    }
-    return Reflect.get(boltffiDemo, property, receiver);
-  },
-});
+// Achatado uma vez, em vez de um Proxy consultado a cada chamada: um `get` trap
+// sobre um namespace de modulo custa ~200-300ns por acesso, o que dominava
+// completamente os benchmarks escalares e nao mede nada do BoltFFI.
+// A precedencia e a mesma do Proxy anterior: overlay antes de demo.
+const boltffi = { ...boltffiDemo, ...boltffiOverlay };
 
 const require = createRequire(import.meta.url);
 const wasmbindgen = require('./build/generated/wasmbindgen/demo.js');
