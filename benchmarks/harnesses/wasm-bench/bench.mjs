@@ -2,15 +2,8 @@ import Benchmark from 'benchmark';
 import { writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
-const boltffiOverlay = await import('./build/generated/boltffi/node.js');
-await boltffiOverlay.initialized;
-const boltffiDemo = await import('./build/generated/boltffi-demo/node.js');
-await boltffiDemo.initialized;
-// Flattened once instead of a Proxy consulted on every call: a `get` trap over
-// a module namespace costs ~200-300ns per access, which dominated the scalar
-// benchmarks and measures nothing about BoltFFI.
-// Precedence matches the previous Proxy: overlay before demo.
-const boltffi = { ...boltffiDemo, ...boltffiOverlay };
+const boltffi = await import('./build/generated/boltffi/node.js');
+await boltffi.initialized;
 
 const require = createRequire(import.meta.url);
 const wasmbindgen = require('./build/generated/wasmbindgen/demo.js');
