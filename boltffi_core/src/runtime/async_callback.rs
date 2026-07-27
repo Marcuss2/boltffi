@@ -251,7 +251,7 @@ impl AsyncCallbackRegistry {
         };
 
         if data_ptr != 0 && data_cap > 0 {
-            crate::wasm::boltffi_wasm_free_impl(data_ptr as usize, data_cap as usize);
+            crate::wasm::boltffi_wasm_free_impl(data_ptr as *mut u8, data_cap as usize);
         }
 
         self.complete(request_id, completion_code, data) as i32

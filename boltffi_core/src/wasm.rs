@@ -4,6 +4,8 @@ pub const WASM_ABI_VERSION: u32 = 2;
 use std::alloc::{Layout, alloc, dealloc};
 #[cfg(target_arch = "wasm32")]
 use std::mem;
+#[cfg(any(test, target_arch = "wasm32"))]
+use std::ptr;
 
 #[cfg(target_arch = "wasm32")]
 #[repr(C)]
@@ -36,33 +38,28 @@ impl WasmCallbackOutBuf {
 impl Drop for WasmCallbackOutBuf {
     fn drop(&mut self) {
         if self.ptr != 0 && self.cap > 0 {
-            boltffi_wasm_free_impl(self.ptr as usize, self.cap as usize);
+            boltffi_wasm_free_impl(self.ptr as *mut u8, self.cap as usize);
         }
     }
 }
 
 #[cfg(any(test, target_arch = "wasm32"))]
-fn boltffi_wasm_alloc_impl(size: usize) -> usize {
+fn boltffi_wasm_alloc_impl(size: usize) -> *mut u8 {
     if size == 0 {
-        return 0;
+        return ptr::null_mut();
     }
 
     let layout = match Layout::from_size_align(size, 8) {
         Ok(layout) => layout,
-        Err(_) => return 0,
+        Err(_) => return ptr::null_mut(),
     };
 
-    let pointer = unsafe { alloc(layout) };
-    if pointer.is_null() {
-        0
-    } else {
-        pointer as usize
-    }
+    unsafe { alloc(layout) }
 }
 
 #[cfg(any(test, target_arch = "wasm32"))]
-pub(crate) fn boltffi_wasm_free_impl(ptr: usize, size: usize) {
-    if ptr == 0 || size == 0 {
+pub(crate) fn boltffi_wasm_free_impl(pointer: *mut u8, size: usize) {
+    if pointer.is_null() || size == 0 {
         return;
     }
 
@@ -71,68 +68,58 @@ pub(crate) fn boltffi_wasm_free_impl(ptr: usize, size: usize) {
         Err(_) => return,
     };
 
-    unsafe { dealloc(ptr as *mut u8, layout) };
+    unsafe { dealloc(pointer, layout) };
 }
 
 #[cfg(any(test, target_arch = "wasm32"))]
-pub(crate) fn boltffi_wasm_free_buf_impl(ptr: usize, size: usize, align: usize) {
-    if ptr == 0 || size == 0 || align == 0 {
+pub(crate) fn boltffi_wasm_free_buf_impl(pointer: *mut u8, size: usize, align: usize) {
+    if pointer.is_null() || size == 0 || align == 0 {
         return;
     }
     let layout = match Layout::from_size_align(size, align) {
         Ok(layout) => layout,
         Err(_) => return,
     };
-    unsafe { dealloc(ptr as *mut u8, layout) };
+    unsafe { dealloc(pointer, layout) };
 }
 
 #[cfg(any(test, target_arch = "wasm32"))]
-pub(crate) unsafe fn boltffi_wasm_free_string_return_impl(ptr: usize, len: usize) {
-    if ptr == 0 || len == 0 {
+pub(crate) unsafe fn boltffi_wasm_free_string_return_impl(pointer: *mut u8, len: usize) {
+    if pointer.is_null() || len == 0 {
         return;
     }
-    unsafe { drop(Vec::from_raw_parts(ptr as *mut u8, len, len)) };
+    unsafe { drop(Vec::from_raw_parts(pointer, len, len)) };
 }
 
 #[cfg(any(test, target_arch = "wasm32"))]
-fn boltffi_wasm_alloc_owned_bytes_impl(len: usize) -> usize {
+fn boltffi_wasm_alloc_owned_bytes_impl(len: usize) -> *mut u8 {
     if len == 0 {
-        return 0;
+        return ptr::null_mut();
     }
     let layout = match Layout::array::<u8>(len) {
         Ok(layout) => layout,
-        Err(_) => return 0,
+        Err(_) => return ptr::null_mut(),
     };
-    let pointer = unsafe { alloc(layout) };
-    if pointer.is_null() {
-        0
-    } else {
-        pointer as usize
-    }
+    unsafe { alloc(layout) }
 }
 
 #[cfg(any(test, target_arch = "wasm32"))]
-fn boltffi_wasm_realloc_impl(ptr: usize, old_size: usize, new_size: usize) -> usize {
+fn boltffi_wasm_realloc_impl(pointer: *mut u8, old_size: usize, new_size: usize) -> *mut u8 {
     if new_size == 0 {
-        boltffi_wasm_free_impl(ptr, old_size);
-        return 0;
+        boltffi_wasm_free_impl(pointer, old_size);
+        return ptr::null_mut();
     }
 
-    if ptr == 0 {
+    if pointer.is_null() {
         return boltffi_wasm_alloc_impl(new_size);
     }
 
     let old_layout = match Layout::from_size_align(old_size, 8) {
         Ok(layout) => layout,
-        Err(_) => return 0,
+        Err(_) => return ptr::null_mut(),
     };
 
-    let new_pointer = unsafe { std::alloc::realloc(ptr as *mut u8, old_layout, new_size) };
-    if new_pointer.is_null() {
-        0
-    } else {
-        new_pointer as usize
-    }
+    unsafe { std::alloc::realloc(pointer, old_layout, new_size) }
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -219,17 +206,18 @@ mod exports {
 
     #[unsafe(no_mangle)]
     pub extern "C" fn boltffi_wasm_free(ptr: u32, size: u32) {
-        super::boltffi_wasm_free_impl(ptr as usize, size as usize);
+        super::boltffi_wasm_free_impl(ptr as *mut u8, size as usize);
     }
 
     #[unsafe(no_mangle)]
     pub extern "C" fn boltffi_wasm_realloc(ptr: u32, old_size: u32, new_size: u32) -> u32 {
-        super::boltffi_wasm_realloc_impl(ptr as usize, old_size as usize, new_size as usize) as u32
+        super::boltffi_wasm_realloc_impl(ptr as *mut u8, old_size as usize, new_size as usize)
+            as u32
     }
 
     #[unsafe(no_mangle)]
     pub unsafe extern "C" fn boltffi_wasm_free_string_return(ptr: u32, len: u32) {
-        unsafe { super::boltffi_wasm_free_string_return_impl(ptr as usize, len as usize) };
+        unsafe { super::boltffi_wasm_free_string_return_impl(ptr as *mut u8, len as usize) };
     }
 
     #[unsafe(no_mangle)]
@@ -239,12 +227,14 @@ mod exports {
 
     #[unsafe(no_mangle)]
     pub extern "C" fn boltffi_wasm_free_buf(ptr: u32, size: u32, align: u32) {
-        super::boltffi_wasm_free_buf_impl(ptr as usize, size as usize, align as usize);
+        super::boltffi_wasm_free_buf_impl(ptr as *mut u8, size as usize, align as usize);
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::ptr::{self, NonNull};
+
     use super::{
         WASM_ABI_VERSION, boltffi_wasm_alloc_impl, boltffi_wasm_alloc_owned_bytes_impl,
         boltffi_wasm_free_buf_impl, boltffi_wasm_free_impl, boltffi_wasm_free_string_return_impl,
@@ -258,20 +248,20 @@ mod tests {
 
     #[test]
     fn alloc_zero_returns_zero_pointer() {
-        assert_eq!(boltffi_wasm_alloc_impl(0), 0);
+        assert!(boltffi_wasm_alloc_impl(0).is_null());
     }
 
     #[test]
     fn alloc_non_zero_returns_pointer_and_free_accepts_it() {
         let pointer = boltffi_wasm_alloc_impl(16);
-        assert_ne!(pointer, 0);
+        assert!(!pointer.is_null());
         boltffi_wasm_free_impl(pointer, 16);
     }
 
     #[test]
     fn realloc_from_null_matches_alloc_behavior() {
-        let pointer = boltffi_wasm_realloc_impl(0, 0, 24);
-        assert_ne!(pointer, 0);
+        let pointer = boltffi_wasm_realloc_impl(ptr::null_mut(), 0, 24);
+        assert!(!pointer.is_null());
         boltffi_wasm_free_impl(pointer, 24);
     }
 
@@ -280,22 +270,20 @@ mod tests {
         let old_size = 32usize;
         let new_size = 96usize;
         let old_pointer = boltffi_wasm_alloc_impl(old_size);
-        assert_ne!(old_pointer, 0);
+        assert!(!old_pointer.is_null());
 
         let expected_prefix = (0..old_size)
             .map(|index| ((index * 7 + 3) % 256) as u8)
             .collect::<Vec<_>>();
 
         unsafe {
-            std::slice::from_raw_parts_mut(old_pointer as *mut u8, old_size)
-                .copy_from_slice(&expected_prefix);
+            std::slice::from_raw_parts_mut(old_pointer, old_size).copy_from_slice(&expected_prefix);
         }
 
         let new_pointer = boltffi_wasm_realloc_impl(old_pointer, old_size, new_size);
-        assert_ne!(new_pointer, 0);
+        assert!(!new_pointer.is_null());
 
-        let actual_prefix =
-            unsafe { std::slice::from_raw_parts(new_pointer as *const u8, old_size) }.to_vec();
+        let actual_prefix = unsafe { std::slice::from_raw_parts(new_pointer, old_size) }.to_vec();
         assert_eq!(actual_prefix, expected_prefix);
 
         boltffi_wasm_free_impl(new_pointer, new_size);
@@ -304,41 +292,40 @@ mod tests {
     #[test]
     fn realloc_to_zero_returns_null_pointer() {
         let pointer = boltffi_wasm_alloc_impl(64);
-        assert_ne!(pointer, 0);
+        assert!(!pointer.is_null());
 
         let reallocated = boltffi_wasm_realloc_impl(pointer, 64, 0);
-        assert_eq!(reallocated, 0);
+        assert!(reallocated.is_null());
     }
 
     #[test]
     fn free_ignores_zero_inputs() {
-        boltffi_wasm_free_impl(0, 32);
-        boltffi_wasm_free_impl(1024, 0);
+        boltffi_wasm_free_impl(ptr::null_mut(), 32);
+        boltffi_wasm_free_impl(NonNull::dangling().as_ptr(), 0);
     }
 
     #[test]
     fn free_buf_releases_with_explicit_alignment() {
         let pointer = boltffi_wasm_alloc_impl(64);
-        assert_ne!(pointer, 0);
+        assert!(!pointer.is_null());
         boltffi_wasm_free_buf_impl(pointer, 64, 8);
     }
 
     #[test]
     fn free_string_return_releases_owned_buffer() {
         let text = "boltffi";
-        let mut boxed = text.as_bytes().to_vec().into_boxed_slice();
-        let ptr = boxed.as_mut_ptr() as usize;
-        let len = boxed.len();
-        std::mem::forget(boxed);
-        unsafe { boltffi_wasm_free_string_return_impl(ptr, len) };
+        let bytes = text.as_bytes().to_vec().into_boxed_slice();
+        let len = bytes.len();
+        let pointer = Box::into_raw(bytes).cast::<u8>();
+        unsafe { boltffi_wasm_free_string_return_impl(pointer, len) };
     }
 
     #[test]
     fn owned_byte_allocation_matches_string_return_release() {
         let len = 16;
         let pointer = boltffi_wasm_alloc_owned_bytes_impl(len);
-        assert_ne!(pointer, 0);
-        unsafe { core::ptr::write_bytes(pointer as *mut u8, 0, len) };
+        assert!(!pointer.is_null());
+        unsafe { core::ptr::write_bytes(pointer, 0, len) };
         unsafe { boltffi_wasm_free_string_return_impl(pointer, len) };
     }
 }

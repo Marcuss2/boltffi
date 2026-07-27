@@ -223,6 +223,7 @@ impl<Payload: Send> Future for ForeignCall<Payload> {
 
 #[cfg(test)]
 mod tests {
+    use std::ffi::c_void;
     use std::pin::Pin;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicUsize, Ordering};
@@ -232,6 +233,21 @@ mod tests {
 
     use super::ForeignCall;
     use crate::{AsyncCallback, FfiBuf, FfiStatus};
+
+    #[repr(transparent)]
+    struct CompletionData(*mut c_void);
+
+    impl CompletionData {
+        fn from_ffi(pointer: *mut c_void) -> Self {
+            Self(pointer)
+        }
+
+        fn into_ffi(self) -> *mut c_void {
+            self.0
+        }
+    }
+
+    unsafe impl Send for CompletionData {}
 
     struct WakeCounter(AtomicUsize);
 
@@ -282,7 +298,7 @@ mod tests {
         let mut call = unsafe {
             ForeignCall::start(|complete, completion_data| {
                 sender
-                    .send((complete, completion_data as usize))
+                    .send((complete, CompletionData::from_ffi(completion_data)))
                     .expect("completion registration sends");
             })
         };
@@ -294,7 +310,11 @@ mod tests {
         let (complete, completion_data) =
             receiver.recv().expect("completion registration receives");
         thread::spawn(move || {
-            complete(completion_data as *mut _, FfiStatus::INTERNAL_ERROR, 29_u32);
+            complete(
+                completion_data.into_ffi(),
+                FfiStatus::INTERNAL_ERROR,
+                29_u32,
+            );
         })
         .join()
         .expect("completion thread joins");
@@ -333,7 +353,7 @@ mod tests {
         let call = unsafe {
             ForeignCall::start(|complete: AsyncCallback<DropProbe>, completion_data| {
                 sender
-                    .send((complete, completion_data as usize))
+                    .send((complete, CompletionData::from_ffi(completion_data)))
                     .expect("completion registration sends");
             })
         };
@@ -342,7 +362,7 @@ mod tests {
         let (complete, completion_data) =
             receiver.recv().expect("completion registration receives");
         complete(
-            completion_data as *mut _,
+            completion_data.into_ffi(),
             FfiStatus::OK,
             DropProbe {
                 count: Arc::clone(&count),
