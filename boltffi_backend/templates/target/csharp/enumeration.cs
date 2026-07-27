@@ -7,15 +7,26 @@ namespace {{ enumeration.namespace }}
 {
 {{ enumeration.documentation }}{% if enumeration.c_style %}    public enum {{ enumeration.name }} : {{ enumeration.underlying_type }}
     {
-{% for variant in enumeration.variants %}{{ variant.documentation }}        {{ variant.name }} = {{ variant.discriminant }}{% if !loop.last %},{% endif %}
+{% for variant in enumeration.variants %}{{ variant.documentation }}        {{ variant.name }} = {{ variant.discriminant }}{% if !loop.last || !enumeration.constant_aliases.is_empty() %},{% endif %}
+{% endfor %}{% for alias in enumeration.constant_aliases %}{{ alias }}{% if !loop.last %},{% endif %}
 {% endfor %}    }
-{% if !enumeration.methods.is_empty() %}
+{%- if !constants.is_empty() %}
+
+    public static class {{ enumeration.name }}Constants
+    {
+{% for constant in constants %}
+{{ constant }}
+{% endfor %}    }
+{%- endif %}
+{%- if !enumeration.methods.is_empty() %}
+
     public static class {{ enumeration.name }}Methods
     {
 {% for function in enumeration.methods %}
 {% include "target/csharp/function.cs" %}
 {% endfor %}    }
-{% endif %}{% else %}    public abstract record {{ enumeration.name }}
+{%- endif %}
+{% else %}    public abstract record {{ enumeration.name }}
     {
         internal static {{ enumeration.name }} Decode(WireReader reader) =>
             reader.ReadU32() switch
@@ -42,6 +53,8 @@ namespace {{ enumeration.namespace }}
         }
 {% for variant in enumeration.data_variants %}
 {{ variant.documentation }}{% for field in variant.fields %}{{ field.parameter_documentation }}{% endfor %}        public sealed record {{ variant.name }}({% for field in variant.fields %}{{ field.ty }} {{ field.name }}{% if !loop.last %}, {% endif %}{% endfor %}) : {{ enumeration.name }};
+{% endfor %}{% for constant in constants %}
+{{ constant }}
 {% endfor %}
 {% for function in enumeration.methods %}
 {% include "target/csharp/function.cs" %}
