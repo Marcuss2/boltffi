@@ -667,7 +667,7 @@ impl<'expansion, 'lowered> Render<Native, ForeignClosureReturn<'expansion, 'lowe
         }
 
         match (input.plan, input.error) {
-            (ReturnPlan::ScalarOptionViaReturnSlot { primitive }, ErrorDecl::None(_)) => {
+            (ReturnPlan::ScalarOptionViaReturnSlot { primitive, .. }, ErrorDecl::None(_)) => {
                 rust_api::Return::new(input.source).scalar_option(*primitive)?;
                 let rust_type = input.rust_type.as_ref().ok_or(Error::SourceSyntaxMismatch(
                     "closure optional scalar return requires source return type",
@@ -828,7 +828,7 @@ impl<'expansion, 'lowered> Render<Wasm32, ForeignClosureReturn<'expansion, 'lowe
         }
 
         match (input.plan, input.error) {
-            (ReturnPlan::ScalarOptionViaReturnSlot { primitive }, ErrorDecl::None(_)) => {
+            (ReturnPlan::ScalarOptionViaReturnSlot { primitive, .. }, ErrorDecl::None(_)) => {
                 rust_api::Return::new(input.source).scalar_option(*primitive)?;
                 let rust_type = input.rust_type.as_ref().ok_or(Error::SourceSyntaxMismatch(
                     "closure optional scalar return requires source return type",

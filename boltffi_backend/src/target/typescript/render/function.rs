@@ -72,6 +72,10 @@ enum ReturnConversion {
     ScalarOption {
         unpack: Identifier,
     },
+    ScalarOptionEnum {
+        unpack: Identifier,
+        enum_type: TypeName,
+    },
     DirectRecord {
         writer: Identifier,
         codec: Identifier,
@@ -1587,6 +1591,16 @@ impl Return {
                     [call].into_iter().collect::<ArgumentList>(),
                 ))]
             }
+            ReturnConversion::ScalarOptionEnum { unpack, enum_type } => {
+                vec![Statement::return_value(Expression::type_assertion(
+                    Expression::call(
+                        Expression::identifier(Identifier::known("_module")),
+                        unpack.clone(),
+                        [call].into_iter().collect::<ArgumentList>(),
+                    ),
+                    enum_type.clone().nullable(),
+                ))]
+            }
             ReturnConversion::DirectRecord { writer, codec } => vec![
                 Statement::expression(call),
                 Statement::return_value(Expression::call(
@@ -2020,6 +2034,27 @@ impl<'plan> ReturnPlanRender<'plan, Wasm32, boltffi_binding::OutOfRust> for Retu
             option.ty()?,
             ReturnConversion::ScalarOption {
                 unpack: option.return_unpack_method(),
+            },
+        ))
+    }
+
+    fn scalar_option_enum(&mut self, primitive: Primitive, target: &'plan TypeRef) -> Self::Output {
+        let option = ScalarOption::new(primitive)?;
+        // Falling back to the plain scalar rendering here would silently widen
+        // the declared type from the enum to `number`.
+        let TypeRef::Enum(id) = target else {
+            return Err(Function::unsupported("scalar option target is not an enum"));
+        };
+        let enum_type = self
+            .context
+            .enumeration(*id)
+            .map(|enumeration| TypeName::named(Name::new(enumeration.name()).type_name()))
+            .ok_or_else(|| Function::unsupported("scalar option enum without declaration"))?;
+        Ok(Return::new(
+            enum_type.clone().nullable(),
+            ReturnConversion::ScalarOptionEnum {
+                unpack: option.return_unpack_method(),
+                enum_type,
             },
         ))
     }

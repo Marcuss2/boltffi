@@ -542,6 +542,11 @@ impl<'source> Return<'source> {
                 "source return is not an optional scalar",
             ));
         };
+        // A C-style enum crosses as its discriminant, so the source type is the
+        // enum while the binding carries the underlying primitive.
+        if matches!(inner.as_ref(), TypeExpr::Enum { .. }) {
+            return Ok(());
+        }
         let TypeExpr::Primitive(source) = inner.as_ref() else {
             return Err(Error::SourceSyntaxMismatch(
                 "source optional return is not scalar",

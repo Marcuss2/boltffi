@@ -1067,7 +1067,7 @@ impl Function {
                     requires_callback_runtime |= matches!(target, HandleTarget::Callback(_));
                     (public_type, handle_carrier_type(*carrier)?, false, false)
                 }
-                ReturnPlan::ScalarOptionViaReturnSlot { primitive } => {
+                ReturnPlan::ScalarOptionViaReturnSlot { primitive, .. } => {
                     if encoded_error.is_some() {
                         return broken_contract(
                             "fallible scalar-option return does not use a success out-pointer",
