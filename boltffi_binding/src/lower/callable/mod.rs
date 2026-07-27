@@ -61,6 +61,8 @@ use boltffi_ast::{
     TraitBounds, TraitId, TypeExpr,
 };
 
+use std::any::TypeId;
+
 use crate::{
     ClosureForm, ClosureParameter, ClosureRegistration, ClosureReturn, ClosureSignature,
     DirectVectorElementType, Direction, ExecutionDecl, ExportedCallable, ForeignBody,
@@ -179,7 +181,7 @@ impl ValueSpecialization {
         let TypeExpr::Option(inner) = type_expr else {
             return Ok(None);
         };
-        if !D::PRODUCED_BY_RUST {
+        if TypeId::of::<D>() != TypeId::of::<OutOfRust>() {
             return Ok(None);
         }
         Ok(Self::scalar_option_enum::<S>(index, ids, inner)?
