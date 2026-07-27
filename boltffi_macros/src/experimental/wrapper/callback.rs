@@ -2213,7 +2213,7 @@ where
             InfallibleMethodReturn::Encoded { codec, .. } => {
                 let value = self.native_async_encoded_value(
                     codec.root(),
-                    quote! { __boltffi_result.as_slice() },
+                    quote! { unsafe { __boltffi_result.as_byte_slice() } },
                 )?;
                 Ok(self.native_async_bytes_body(call, value))
             }
@@ -2269,9 +2269,7 @@ where
                     wrapper::returns::scalar_option::IncomingInput::new(
                         primitive,
                         rust_type,
-                        quote! {
-                            ::boltffi::__private::FfiBuf::from_vec(__boltffi_result)
-                        },
+                        quote! { __boltffi_result },
                     ),
                 )?;
                 Ok(self.native_async_bytes_body(call, value))
@@ -2282,9 +2280,7 @@ where
                     wrapper::returns::direct_vec::Incoming,
                     wrapper::returns::direct_vec::IncomingInput::new(
                         element,
-                        quote! {
-                            ::boltffi::__private::FfiBuf::from_vec(__boltffi_result)
-                        },
+                        quote! { __boltffi_result },
                     ),
                 )?;
                 Ok(self.native_async_bytes_body(call, value))
@@ -2551,10 +2547,12 @@ where
     ) -> Result<TokenStream, Error> {
         S::callback_encoded_error(error_shape)?;
         let success = self.async_fallible_success_value(quote! {
-            __boltffi_result.as_slice()
+            unsafe { __boltffi_result.as_byte_slice() }
         })?;
-        let error =
-            self.async_fallible_error_value(error_codec, quote! { __boltffi_result.as_slice() })?;
+        let error = self.async_fallible_error_value(
+            error_codec,
+            quote! { unsafe { __boltffi_result.as_byte_slice() } },
+        )?;
         Ok(self.native_async_bytes_result_body(call, success, error))
     }
 
@@ -2576,72 +2574,23 @@ where
 
     fn native_async_void_body(&self, call: TokenStream) -> TokenStream {
         quote! {
-            use std::sync::{Arc, Mutex};
-            use std::task::Waker;
-
-            struct __BoltffiAsyncState {
-                completed: bool,
-                status: ::boltffi::__private::FfiStatus,
-                waker: Option<Waker>,
-            }
-
-            struct __BoltffiAsyncContext {
-                state: Mutex<__BoltffiAsyncState>,
-            }
-
-            extern "C" fn __boltffi_completion(
-                completion_data: *mut ::core::ffi::c_void,
-                status: ::boltffi::__private::FfiStatus,
-            ) {
-                let context =
-                    unsafe { Arc::from_raw(completion_data as *const __BoltffiAsyncContext) };
-                let waker = context
-                    .state
-                    .lock()
-                    .ok()
-                    .and_then(|mut state| {
-                        state.completed = true;
-                        state.status = status;
-                        state.waker.take()
-                    });
-                if let Some(waker) = waker {
-                    waker.wake();
+            let (__boltffi_status, ()) =
+                unsafe {
+                    ::boltffi::__private::ForeignCall::start_void(
+                        |__boltffi_completion, __boltffi_completion_data| unsafe {
+                            #call;
+                        },
+                    )
                 }
+                .await;
+            if __boltffi_status.is_err() {
+                eprintln!(
+                    "boltffi: an infallible async callback completed with a failure \
+                     status; the trait method has no Result to report it through, so \
+                     this is a host language binding bug, not a normal error -- \
+                     continuing as if it completed successfully"
+                );
             }
-
-            let __boltffi_context = Arc::new(__BoltffiAsyncContext {
-                state: Mutex::new(__BoltffiAsyncState {
-                    completed: false,
-                    status: ::boltffi::__private::FfiStatus::OK,
-                    waker: None,
-                }),
-            });
-            let __boltffi_completion_data =
-                Arc::into_raw(Arc::clone(&__boltffi_context)) as *mut ::core::ffi::c_void;
-            unsafe {
-                #call;
-            }
-
-            std::future::poll_fn(move |task| {
-                let mut state = __boltffi_context
-                    .state
-                    .lock()
-                    .expect("async callback mutex poisoned");
-                if state.completed {
-                    if state.status.is_err() {
-                        eprintln!(
-                            "boltffi: an infallible async callback completed with a failure \
-                             status; the trait method has no Result to report it through, so \
-                             this is a host language binding bug, not a normal error -- \
-                             continuing as if it completed successfully"
-                        );
-                    }
-                    std::task::Poll::Ready(())
-                } else {
-                    state.waker = Some(task.waker().clone());
-                    std::task::Poll::Pending
-                }
-            }).await
         }
     }
 
@@ -2673,215 +2622,42 @@ where
         on_failure: TokenStream,
     ) -> TokenStream {
         quote! {
-            use std::sync::{Arc, Mutex};
-            use std::task::Waker;
-
-            struct __BoltffiAsyncState {
-                result: Option<#result_type>,
-                status: ::boltffi::__private::FfiStatus,
-                waker: Option<Waker>,
-            }
-
-            struct __BoltffiAsyncContext {
-                state: Mutex<__BoltffiAsyncState>,
-            }
-
-            extern "C" fn __boltffi_completion(
-                completion_data: *mut ::core::ffi::c_void,
-                status: ::boltffi::__private::FfiStatus,
-                result: #result_type,
-            ) {
-                let context =
-                    unsafe { Arc::from_raw(completion_data as *const __BoltffiAsyncContext) };
-                let waker = context
-                    .state
-                    .lock()
-                    .ok()
-                    .and_then(|mut state| {
-                        state.result = Some(result);
-                        state.status = status;
-                        state.waker.take()
-                    });
-                if let Some(waker) = waker {
-                    waker.wake();
+            let (__boltffi_status, __boltffi_result) =
+                unsafe {
+                    ::boltffi::__private::ForeignCall::<#result_type>::start(
+                        |__boltffi_completion, __boltffi_completion_data| unsafe {
+                            #call;
+                        },
+                    )
                 }
+                .await;
+            if __boltffi_status.is_err() {
+                #on_failure
             }
-
-            let __boltffi_context = Arc::new(__BoltffiAsyncContext {
-                state: Mutex::new(__BoltffiAsyncState {
-                    result: None,
-                    status: ::boltffi::__private::FfiStatus::OK,
-                    waker: None,
-                }),
-            });
-            let __boltffi_completion_data =
-                Arc::into_raw(Arc::clone(&__boltffi_context)) as *mut ::core::ffi::c_void;
-            unsafe {
-                #call;
-            }
-
-            std::future::poll_fn(move |task| {
-                let mut state = __boltffi_context
-                    .state
-                    .lock()
-                    .expect("async callback mutex poisoned");
-                if let Some(__boltffi_result) = state.result.take() {
-                    if state.status.is_err() {
-                        #on_failure
-                    }
-                    std::task::Poll::Ready(#value)
-                } else {
-                    state.waker = Some(task.waker().clone());
-                    std::task::Poll::Pending
-                }
-            }).await
+            #value
         }
     }
 
     fn native_async_bytes_body(&self, call: TokenStream, value: TokenStream) -> TokenStream {
         quote! {
-            use std::sync::{Arc, Mutex};
-            use std::task::Waker;
-
-            struct __BoltffiAsyncState {
-                result: Option<Vec<u8>>,
-                status: ::boltffi::__private::FfiStatus,
-                waker: Option<Waker>,
-            }
-
-            struct __BoltffiAsyncContext {
-                state: Mutex<__BoltffiAsyncState>,
-            }
-
-            extern "C" fn __boltffi_completion(
-                completion_data: *mut ::core::ffi::c_void,
-                status: ::boltffi::__private::FfiStatus,
-                result: ::boltffi::__private::FfiBuf,
-            ) {
-                let context =
-                    unsafe { Arc::from_raw(completion_data as *const __BoltffiAsyncContext) };
-                let bytes = unsafe { result.as_byte_slice() }.to_vec();
-                let waker = context
-                    .state
-                    .lock()
-                    .ok()
-                    .and_then(|mut state| {
-                        state.result = Some(bytes);
-                        state.status = status;
-                        state.waker.take()
-                    });
-                if let Some(waker) = waker {
-                    waker.wake();
+            let (__boltffi_status, __boltffi_result) =
+                unsafe {
+                    ::boltffi::__private::ForeignCall::<::boltffi::__private::FfiBuf>::start(
+                        |__boltffi_completion, __boltffi_completion_data| unsafe {
+                            #call;
+                        },
+                    )
                 }
+                .await;
+            if __boltffi_status.is_err() {
+                panic!(
+                    "boltffi: an infallible async callback completed with a failure \
+                     status; the trait method has no Result to report it through and \
+                     its payload requires wire-decoding, which has no defined shape on \
+                     failure -- this is a host language binding bug, not a normal error"
+                );
             }
-
-            let __boltffi_context = Arc::new(__BoltffiAsyncContext {
-                state: Mutex::new(__BoltffiAsyncState {
-                    result: None,
-                    status: ::boltffi::__private::FfiStatus::OK,
-                    waker: None,
-                }),
-            });
-            let __boltffi_completion_data =
-                Arc::into_raw(Arc::clone(&__boltffi_context)) as *mut ::core::ffi::c_void;
-            unsafe {
-                #call;
-            }
-
-            std::future::poll_fn(move |task| {
-                let mut state = __boltffi_context
-                    .state
-                    .lock()
-                    .expect("async callback mutex poisoned");
-                if let Some(__boltffi_result) = state.result.take() {
-                    if state.status.is_err() {
-                        panic!(
-                            "boltffi: an infallible async callback completed with a failure \
-                             status; the trait method has no Result to report it through and \
-                             its payload requires wire-decoding, which has no defined shape on \
-                             failure -- this is a host language binding bug, not a normal error"
-                        );
-                    }
-                    std::task::Poll::Ready(#value)
-                } else {
-                    state.waker = Some(task.waker().clone());
-                    std::task::Poll::Pending
-                }
-            }).await
-        }
-    }
-
-    fn native_async_result_body(
-        &self,
-        call: TokenStream,
-        success: TokenStream,
-        error: TokenStream,
-    ) -> TokenStream {
-        quote! {
-            use std::sync::{Arc, Mutex};
-            use std::task::Waker;
-
-            struct __BoltffiAsyncState {
-                result: Option<::boltffi::__private::FfiBuf>,
-                status: ::boltffi::__private::FfiStatus,
-                waker: Option<Waker>,
-            }
-
-            struct __BoltffiAsyncContext {
-                state: Mutex<__BoltffiAsyncState>,
-            }
-
-            extern "C" fn __boltffi_completion(
-                completion_data: *mut ::core::ffi::c_void,
-                status: ::boltffi::__private::FfiStatus,
-                result: ::boltffi::__private::FfiBuf,
-            ) {
-                let context =
-                    unsafe { Arc::from_raw(completion_data as *const __BoltffiAsyncContext) };
-                let waker = context
-                    .state
-                    .lock()
-                    .ok()
-                    .and_then(|mut state| {
-                        state.result = Some(result);
-                        state.status = status;
-                        state.waker.take()
-                    });
-                if let Some(waker) = waker {
-                    waker.wake();
-                }
-            }
-
-            let __boltffi_context = Arc::new(__BoltffiAsyncContext {
-                state: Mutex::new(__BoltffiAsyncState {
-                    result: None,
-                    status: ::boltffi::__private::FfiStatus::OK,
-                    waker: None,
-                }),
-            });
-            let __boltffi_completion_data =
-                Arc::into_raw(Arc::clone(&__boltffi_context)) as *mut ::core::ffi::c_void;
-            unsafe {
-                #call;
-            }
-
-            std::future::poll_fn(move |task| {
-                let mut state = __boltffi_context
-                    .state
-                    .lock()
-                    .expect("async callback mutex poisoned");
-                if let Some(__boltffi_result) = state.result.take() {
-                    let __boltffi_return = if state.status.is_err() {
-                        Err(#error)
-                    } else {
-                        Ok(#success)
-                    };
-                    std::task::Poll::Ready(__boltffi_return)
-                } else {
-                    state.waker = Some(task.waker().clone());
-                    std::task::Poll::Pending
-                }
-            }).await
+            #value
         }
     }
 
@@ -2892,71 +2668,20 @@ where
         error: TokenStream,
     ) -> TokenStream {
         quote! {
-            use std::sync::{Arc, Mutex};
-            use std::task::Waker;
-
-            struct __BoltffiAsyncState {
-                result: Option<Vec<u8>>,
-                status: ::boltffi::__private::FfiStatus,
-                waker: Option<Waker>,
-            }
-
-            struct __BoltffiAsyncContext {
-                state: Mutex<__BoltffiAsyncState>,
-            }
-
-            extern "C" fn __boltffi_completion(
-                completion_data: *mut ::core::ffi::c_void,
-                status: ::boltffi::__private::FfiStatus,
-                result: ::boltffi::__private::FfiBuf,
-            ) {
-                let context =
-                    unsafe { Arc::from_raw(completion_data as *const __BoltffiAsyncContext) };
-                let bytes = unsafe { result.as_byte_slice() }.to_vec();
-                let waker = context
-                    .state
-                    .lock()
-                    .ok()
-                    .and_then(|mut state| {
-                        state.result = Some(bytes);
-                        state.status = status;
-                        state.waker.take()
-                    });
-                if let Some(waker) = waker {
-                    waker.wake();
+            let (__boltffi_status, __boltffi_result) =
+                unsafe {
+                    ::boltffi::__private::ForeignCall::<::boltffi::__private::FfiBuf>::start(
+                        |__boltffi_completion, __boltffi_completion_data| unsafe {
+                            #call;
+                        },
+                    )
                 }
+                .await;
+            if __boltffi_status.is_err() {
+                Err(#error)
+            } else {
+                Ok(#success)
             }
-
-            let __boltffi_context = Arc::new(__BoltffiAsyncContext {
-                state: Mutex::new(__BoltffiAsyncState {
-                    result: None,
-                    status: ::boltffi::__private::FfiStatus::OK,
-                    waker: None,
-                }),
-            });
-            let __boltffi_completion_data =
-                Arc::into_raw(Arc::clone(&__boltffi_context)) as *mut ::core::ffi::c_void;
-            unsafe {
-                #call;
-            }
-
-            std::future::poll_fn(move |task| {
-                let mut state = __boltffi_context
-                    .state
-                    .lock()
-                    .expect("async callback mutex poisoned");
-                if let Some(__boltffi_result) = state.result.take() {
-                    let __boltffi_return = if state.status.is_err() {
-                        Err(#error)
-                    } else {
-                        Ok(#success)
-                    };
-                    std::task::Poll::Ready(__boltffi_return)
-                } else {
-                    state.waker = Some(task.waker().clone());
-                    std::task::Poll::Pending
-                }
-            }).await
         }
     }
 
@@ -2964,30 +2689,19 @@ where
         quote! {
             let __boltffi_registry = ::boltffi::__private::AsyncCallbackRegistry::current();
             let __boltffi_request = __boltffi_registry.allocate();
-            let mut __boltffi_guard = Some(
-                ::boltffi::__private::AsyncCallbackRequestGuard::new(__boltffi_request)
-            );
+            let __boltffi_wait = __boltffi_registry.wait(__boltffi_request);
             unsafe {
                 #call;
             }
-            std::future::poll_fn(move |task| {
-                __boltffi_registry.set_waker(__boltffi_request, task.waker().clone());
-                match __boltffi_registry.take_completion(__boltffi_request) {
-                    Some(__boltffi_completion) => {
-                        if !__boltffi_completion.code.is_success() {
-                            eprintln!(
-                                "boltffi: an infallible async callback completed with a failure \
-                                 status; the trait method has no Result to report it through, \
-                                 so this is a host language binding bug, not a normal error -- \
-                                 continuing as if it completed successfully"
-                            );
-                        }
-                        drop(__boltffi_guard.take());
-                        std::task::Poll::Ready(())
-                    }
-                    None => std::task::Poll::Pending,
-                }
-            }).await
+            let __boltffi_completion = __boltffi_wait.await;
+            if !__boltffi_completion.code.is_success() {
+                eprintln!(
+                    "boltffi: an infallible async callback completed with a failure \
+                     status; the trait method has no Result to report it through, \
+                     so this is a host language binding bug, not a normal error -- \
+                     continuing as if it completed successfully"
+                );
+            }
         }
     }
 
@@ -3000,27 +2714,16 @@ where
         quote! {
             let __boltffi_registry = ::boltffi::__private::AsyncCallbackRegistry::current();
             let __boltffi_request = __boltffi_registry.allocate();
-            let mut __boltffi_guard = Some(
-                ::boltffi::__private::AsyncCallbackRequestGuard::new(__boltffi_request)
-            );
+            let __boltffi_wait = __boltffi_registry.wait(__boltffi_request);
             unsafe {
                 #call;
             }
-            std::future::poll_fn(move |task| {
-                __boltffi_registry.set_waker(__boltffi_request, task.waker().clone());
-                match __boltffi_registry.take_completion(__boltffi_request) {
-                    Some(__boltffi_completion) => {
-                        let __boltffi_return = if __boltffi_completion.code.is_success() {
-                            Ok(#success)
-                        } else {
-                            Err(#error)
-                        };
-                        drop(__boltffi_guard.take());
-                        std::task::Poll::Ready(__boltffi_return)
-                    }
-                    None => std::task::Poll::Pending,
-                }
-            }).await
+            let __boltffi_completion = __boltffi_wait.await;
+            if __boltffi_completion.code.is_success() {
+                Ok(#success)
+            } else {
+                Err(#error)
+            }
         }
     }
 
@@ -3028,31 +2731,21 @@ where
         quote! {
             let __boltffi_registry = ::boltffi::__private::AsyncCallbackRegistry::current();
             let __boltffi_request = __boltffi_registry.allocate();
-            let mut __boltffi_guard = Some(
-                ::boltffi::__private::AsyncCallbackRequestGuard::new(__boltffi_request)
-            );
+            let __boltffi_wait = __boltffi_registry.wait(__boltffi_request);
             unsafe {
                 #call;
             }
-            std::future::poll_fn(move |task| {
-                __boltffi_registry.set_waker(__boltffi_request, task.waker().clone());
-                match __boltffi_registry.take_completion(__boltffi_request) {
-                    Some(__boltffi_completion) => {
-                        if !__boltffi_completion.code.is_success() {
-                            panic!(
-                                "boltffi: an infallible async callback completed with a failure \
-                                 status; the trait method has no Result to report it through \
-                                 and its payload requires wire-decoding, which has no defined \
-                                 shape on failure -- this is a host language binding bug, not a \
-                                 normal error"
-                            );
-                        }
-                        drop(__boltffi_guard.take());
-                        std::task::Poll::Ready(#value)
-                    }
-                    None => std::task::Poll::Pending,
-                }
-            }).await
+            let __boltffi_completion = __boltffi_wait.await;
+            if !__boltffi_completion.code.is_success() {
+                panic!(
+                    "boltffi: an infallible async callback completed with a failure \
+                     status; the trait method has no Result to report it through \
+                     and its payload requires wire-decoding, which has no defined \
+                     shape on failure -- this is a host language binding bug, not a \
+                     normal error"
+                );
+            }
+            #value
         }
     }
 

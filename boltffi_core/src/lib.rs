@@ -46,11 +46,12 @@ pub use handle::HandleBox;
 pub use interned_string::{InternedString, InternedStringPool, InternedStringRepr};
 pub use passable::{Passable, VecTransport, WirePassable};
 pub use ringbuffer::SpscRingBuffer;
+pub use runtime::ForeignCall;
 pub use runtime::async_callback;
 pub use runtime::async_callback::{
     AsyncCallback, AsyncCallbackCompletion, AsyncCallbackCompletionCode,
     AsyncCallbackCompletionResult, AsyncCallbackRegistry, AsyncCallbackRequestGuard,
-    AsyncCallbackRequestId, AsyncCallbackString, AsyncCallbackVoid,
+    AsyncCallbackRequestId, AsyncCallbackString, AsyncCallbackVoid, AsyncCallbackWait,
 };
 pub use runtime::future as rustfuture;
 pub use runtime::future::{

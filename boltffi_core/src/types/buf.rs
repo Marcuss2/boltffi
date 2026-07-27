@@ -9,6 +9,8 @@ pub struct FfiBuf {
     align: usize,
 }
 
+unsafe impl Send for FfiBuf {}
+
 impl FfiBuf {
     pub const fn empty() -> Self {
         Self {
@@ -19,7 +21,7 @@ impl FfiBuf {
         }
     }
 
-    pub fn from_vec<T>(vec: Vec<T>) -> Self {
+    pub fn from_vec<T: Send + 'static>(vec: Vec<T>) -> Self {
         let mut vec = ManuallyDrop::new(vec);
         let len = vec.len() * mem::size_of::<T>();
         let cap = vec.capacity() * mem::size_of::<T>();

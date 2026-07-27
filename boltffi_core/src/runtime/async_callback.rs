@@ -1,6 +1,8 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::task::Waker;
+use std::future::Future;
+use std::pin::Pin;
+use std::task::{Context, Poll, Waker};
 
 /// Callback ABI for async completions that carry a result payload.
 ///
@@ -219,6 +221,13 @@ impl AsyncCallbackRegistry {
         self.with_state(|registry_state| registry_state.cancel(request_id))
     }
 
+    pub fn wait(&self, request_id: AsyncCallbackRequestId) -> AsyncCallbackWait {
+        AsyncCallbackWait {
+            request_id,
+            guard: Some(AsyncCallbackRequestGuard::new(request_id)),
+        }
+    }
+
     #[cfg(target_arch = "wasm32")]
     pub unsafe fn complete_from_ffi(
         &self,
@@ -269,5 +278,107 @@ impl AsyncCallbackRequestGuard {
 impl Drop for AsyncCallbackRequestGuard {
     fn drop(&mut self) {
         AsyncCallbackRegistry::current().remove(self.request_id);
+    }
+}
+
+pub struct AsyncCallbackWait {
+    request_id: AsyncCallbackRequestId,
+    guard: Option<AsyncCallbackRequestGuard>,
+}
+
+impl Future for AsyncCallbackWait {
+    type Output = AsyncCallbackCompletion;
+
+    fn poll(self: Pin<&mut Self>, task: &mut Context<'_>) -> Poll<Self::Output> {
+        let wait = self.get_mut();
+        let registry = AsyncCallbackRegistry::current();
+        registry.set_waker(wait.request_id, task.waker().clone());
+        match registry.take_completion(wait.request_id) {
+            Some(completion) => {
+                drop(wait.guard.take());
+                Poll::Ready(completion)
+            }
+            None => Poll::Pending,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::pin::Pin;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::task::{Context, Poll, Wake, Waker};
+
+    use super::{
+        AsyncCallbackCompletionCode, AsyncCallbackCompletionResult, AsyncCallbackRegistry,
+    };
+
+    struct WakeCounter(AtomicUsize);
+
+    impl Wake for WakeCounter {
+        fn wake(self: Arc<Self>) {
+            self.0.fetch_add(1, Ordering::Relaxed);
+        }
+
+        fn wake_by_ref(self: &Arc<Self>) {
+            self.0.fetch_add(1, Ordering::Relaxed);
+        }
+    }
+
+    #[test]
+    fn wait_resolves_completed_request() {
+        let registry = AsyncCallbackRegistry::current();
+        let request = registry.allocate();
+        let mut wait = registry.wait(request);
+        let waker = Waker::noop();
+        let mut task = Context::from_waker(waker);
+
+        assert!(Pin::new(&mut wait).poll(&mut task).is_pending());
+        assert_eq!(
+            registry.complete(
+                request,
+                AsyncCallbackCompletionCode::Completed,
+                vec![1, 2, 3],
+            ),
+            AsyncCallbackCompletionResult::Accepted
+        );
+
+        let Poll::Ready(completion) = Pin::new(&mut wait).poll(&mut task) else {
+            panic!("completed request is ready")
+        };
+        assert_eq!(completion.code, AsyncCallbackCompletionCode::Completed);
+        assert_eq!(completion.data, [1, 2, 3]);
+    }
+
+    #[test]
+    fn completion_wakes_waiter() {
+        let registry = AsyncCallbackRegistry::current();
+        let request = registry.allocate();
+        let mut wait = registry.wait(request);
+        let wake_counter = Arc::new(WakeCounter(AtomicUsize::new(0)));
+        let waker = Waker::from(Arc::clone(&wake_counter));
+        let mut task = Context::from_waker(&waker);
+
+        assert!(Pin::new(&mut wait).poll(&mut task).is_pending());
+        assert_eq!(
+            registry.complete(request, AsyncCallbackCompletionCode::Completed, Vec::new()),
+            AsyncCallbackCompletionResult::Accepted
+        );
+        assert_eq!(wake_counter.0.load(Ordering::Relaxed), 1);
+    }
+
+    #[test]
+    fn dropping_wait_removes_request() {
+        let registry = AsyncCallbackRegistry::current();
+        let request = registry.allocate();
+        let wait = registry.wait(request);
+
+        drop(wait);
+
+        assert_eq!(
+            registry.complete(request, AsyncCallbackCompletionCode::Completed, Vec::new()),
+            AsyncCallbackCompletionResult::UnknownOrAlreadyCompleted
+        );
     }
 }

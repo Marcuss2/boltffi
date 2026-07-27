@@ -7309,7 +7309,8 @@ mod tests {
         assert!(
             rendered.contains("async fn try_numbers (& self) -> Result < Vec < u8 > , String >")
         );
-        assert!(rendered.contains("if state . status . is_err ()"));
+        assert!(rendered.contains("ForeignCall :: < :: boltffi :: __private :: FfiBuf > :: start"));
+        assert!(rendered.contains("if __boltffi_status . is_err ()"));
         assert!(rendered.contains(":: boltffi :: __private :: wire :: decode :: < u32 >"));
         assert!(rendered.contains(":: boltffi :: __private :: wire :: decode :: < Vec < u8 > >"));
         assert!(rendered.contains(":: boltffi :: __private :: wire :: decode :: < String >"));

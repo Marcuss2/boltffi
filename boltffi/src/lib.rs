@@ -38,7 +38,7 @@ pub mod __private {
     pub use boltffi_core::{
         ArcFromCallbackHandle, AsyncCallback, AsyncCallbackString, AsyncCallbackVoid,
         BoxFromCallbackHandle, CallbackForeignType, CallbackHandle, EventSubscription, FfiBuf,
-        FfiSpan, FfiStatus, InternedString, InternedStringPool, InternedStringRepr,
+        FfiSpan, FfiStatus, ForeignCall, InternedString, InternedStringPool, InternedStringRepr,
         NativeCallbackOwner, Passable, RustFutureContinuationCallback, RustFutureHandle,
         StreamContinuationCallback, StreamPollResult, SubscriptionHandle, VecTransport, WaitResult,
         WirePassable, rustfuture, set_last_error, take_last_error, wire,
@@ -47,8 +47,8 @@ pub mod __private {
     pub use boltffi_core::{
         AsyncCallbackCompletion, AsyncCallbackCompletionCode, AsyncCallbackCompletionResult,
         AsyncCallbackRegistry, AsyncCallbackRequestGuard, AsyncCallbackRequestId,
-        WasmCallbackOutBuf, WasmCallbackOwner, rust_future_panic_message, rust_future_poll_sync,
-        take_packed_bytes, take_packed_utf8_string, take_return_slot_vec,
+        AsyncCallbackWait, WasmCallbackOutBuf, WasmCallbackOwner, rust_future_panic_message,
+        rust_future_poll_sync, take_packed_bytes, take_packed_utf8_string, take_return_slot_vec,
         write_option_f64_presence, write_return_slot,
     };
 }
