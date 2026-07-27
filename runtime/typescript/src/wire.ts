@@ -535,11 +535,21 @@ export class WireWriter {
   }
 
   writeString(value: string): void {
-    const encoded = UTF8_ENCODER.encode(value);
-    this.writeU32(encoded.length);
-    this.ensureCapacity(encoded.length);
-    new Uint8Array(this.currentBuffer()).set(encoded, this.writePosition());
-    this.offset += encoded.length;
+    const byteLength = utf8ByteCount(value);
+    // Reserve length prefix and payload together so a realloc cannot happen
+    // between taking the view and writing into it.
+    this.ensureCapacity(4 + byteLength);
+    this.writeU32(byteLength);
+    if (byteLength > 0) {
+      const target = new Uint8Array(this.currentBuffer(), this.writePosition(), byteLength);
+      const { written } = UTF8_ENCODER.encodeInto(value, target);
+      if (written !== byteLength) {
+        // encodeInto may stop short on an exactly sized buffer for some
+        // non-ASCII inputs; fall back to the allocating path.
+        target.set(UTF8_ENCODER.encode(value));
+      }
+    }
+    this.offset += byteLength;
   }
 
   writeBytes(value: Uint8Array): void {
@@ -623,11 +633,35 @@ export class WireWriter {
 }
 
 export function wireStringSize(value: string): number {
-  return 4 + UTF8_ENCODER.encode(value).length;
+  return 4 + utf8ByteCount(value);
 }
 
+/**
+ * Counts UTF-8 bytes without allocating. Encoding the string just to read
+ * `.length` made every string encode twice: once to size it, once to write it.
+ * Unpaired surrogates count as 3 bytes, matching TextEncoder's U+FFFD output.
+ */
 export function utf8ByteCount(value: string): number {
-  return UTF8_ENCODER.encode(value).length;
+  let bytes = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code < 0x80) {
+      bytes += 1;
+    } else if (code < 0x800) {
+      bytes += 2;
+    } else if (code >= 0xd800 && code <= 0xdbff) {
+      const next = value.charCodeAt(index + 1);
+      if (next >= 0xdc00 && next <= 0xdfff) {
+        bytes += 4;
+        index += 1;
+      } else {
+        bytes += 3;
+      }
+    } else {
+      bytes += 3;
+    }
+  }
+  return bytes;
 }
 
 export function wireOptionalSize<T>(value: T | null, size: (value: T) => number): number {
