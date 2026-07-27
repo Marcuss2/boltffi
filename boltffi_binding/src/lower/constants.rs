@@ -18,9 +18,12 @@
 //!   consumer the result is still a named immutable value; inline versus
 //!   accessor is only how the bytes are delivered.
 //!
-//! A value that cannot inhabit its declared type (a bool literal on a
-//! string constant, a path to an unknown enum variant) is rejected with
-//! [`LowerErrorKind::InvalidConstantValue`].
+//! A literal that cannot inhabit its declared type (a bool literal on a
+//! string constant) is rejected with
+//! [`LowerErrorKind::InvalidConstantValue`]. A path that does not name a
+//! unit variant of the constant's enum type (an alias of another
+//! constant, a re-exported value) falls back to accessor delivery, where
+//! rustc is the authority on whether the value exists.
 //!
 //! [`ConstantDef`]: boltffi_ast::ConstantDef
 //! [`ConstantDecl<S>`]: crate::ConstantDecl
@@ -167,7 +170,7 @@ impl<'src> InlineConstantType<'src> {
                 Ok(Some(DefaultValue::String(value.clone())))
             }
             (Self::Enum(enumeration), ConstExpr::Path(path)) => {
-                enum_variant_from_path(enumeration, path, constant)
+                Ok(enum_variant_from_path(enumeration, path, constant))
             }
             (_, ConstExpr::Path(_)) => Ok(None),
             (_, ConstExpr::Literal(Literal::Bytes(_)))
@@ -183,10 +186,13 @@ fn enum_variant_from_path(
     enumeration: &SourceEnum,
     path: &SourcePath,
     constant: &SourceConstant,
-) -> Result<Option<DefaultValue>, LowerError> {
-    let Some((variant_segment, qualifier)) = path.segments.split_last() else {
-        return Ok(None);
-    };
+) -> Option<DefaultValue> {
+    // Returns the inline variant the path names, or `None` for any path
+    // this pass cannot prove is a unit variant of the constant's enum
+    // type (an alias of another constant, a differently-qualified value):
+    // those deliver through an accessor and rustc decides whether the
+    // spelling is valid.
+    let (variant_segment, qualifier) = path.segments.split_last()?;
     let associated_self = matches!(
         (constant.owner.as_ref(), qualifier),
         (
@@ -195,22 +201,16 @@ fn enum_variant_from_path(
         ) if owner == &enumeration.id && segment.name.as_str() == "Self"
     );
     if !enum_qualifier_matches(enumeration, qualifier) && !associated_self {
-        return Ok(None);
+        return None;
     }
     let variant = enumeration.variants.iter().find(|variant| {
         matches!(variant.payload, VariantPayload::Unit)
             && canonical_name_matches_segment(&variant.name, variant_segment.name.as_str())
-    });
-    let Some(variant) = variant else {
-        if associated_self {
-            return Ok(None);
-        }
-        return Err(LowerError::invalid_constant_value(&constant.id));
-    };
-    Ok(Some(DefaultValue::EnumVariant {
+    })?;
+    Some(DefaultValue::EnumVariant {
         enum_name: CanonicalName::from(&enumeration.name),
         variant_name: CanonicalName::from(&variant.name),
-    }))
+    })
 }
 
 fn enum_qualifier_matches(
@@ -929,7 +929,7 @@ mod tests {
     }
 
     #[test]
-    fn enum_constant_rejects_unknown_variant_path() {
+    fn enum_constant_path_to_non_variant_lowers_via_accessor() {
         use boltffi_ast::{EnumDef, EnumId as SourceEnumId, PathSegment, VariantDef};
 
         let mut contract = package();
@@ -942,20 +942,54 @@ mod tests {
             enum_type("demo::Mode", "Mode"),
             ConstExpr::Path(SourcePath::new(
                 boltffi_ast::PathRoot::Relative,
-                vec![PathSegment::new("Mode"), PathSegment::new("Slow")],
+                vec![PathSegment::new("Mode"), PathSegment::new("DEFAULT")],
             )),
         ));
 
-        let error = lower::<Native>(&contract).expect_err("unknown enum variant must reject");
+        let bindings = lower::<Native>(&contract).expect("non-variant enum path should lower");
+
+        match only_constant(&bindings).value() {
+            ConstantValueDecl::Accessor { symbol, callable } => {
+                assert_eq!(symbol.name().as_str(), "boltffi_const_demo_default_mode");
+                assert!(callable.params().is_empty());
+            }
+            other => panic!("expected accessor constant value, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn associated_enum_alias_with_enum_qualifier_lowers_via_accessor() {
+        use boltffi_ast::{EnumDef, EnumId as SourceEnumId, PathSegment, VariantDef};
+
+        let mut contract = package();
+        let enum_id = SourceEnumId::new("demo::Mode");
+        let mut mode = EnumDef::new(enum_id.clone(), name("Mode"));
+        mode.variants.push(VariantDef::unit(name("Fast")));
+        contract.enums.push(mode);
+
+        let mut fallback = constant(
+            "demo::Mode::FALLBACK",
+            "FALLBACK",
+            TypeExpr::SelfType,
+            ConstExpr::Path(SourcePath::new(
+                boltffi_ast::PathRoot::Relative,
+                vec![PathSegment::new("Mode"), PathSegment::new("DEFAULT")],
+            )),
+        );
+        fallback.owner = Some(SourceConstantOwner::Enum(enum_id));
+        contract.constants.push(fallback);
+
+        let bindings =
+            lower::<Native>(&contract).expect("enum-qualified associated alias should lower");
 
         assert!(matches!(
-            error.kind(),
-            LowerErrorKind::InvalidConstantValue(constant) if constant == "demo::DEFAULT_MODE"
+            only_constant(&bindings).value(),
+            ConstantValueDecl::Accessor { .. }
         ));
     }
 
     #[test]
-    fn enum_constant_rejects_payload_variant_path() {
+    fn enum_constant_payload_variant_path_lowers_via_accessor() {
         use boltffi_ast::{
             EnumDef, EnumId as SourceEnumId, FieldDef, PathSegment, VariantDef, VariantPayload,
         };
@@ -994,11 +1028,11 @@ mod tests {
             )),
         ));
 
-        let error = lower::<Native>(&contract).expect_err("payload enum variant must reject");
+        let bindings = lower::<Native>(&contract).expect("payload variant path should lower");
 
         assert!(matches!(
-            error.kind(),
-            LowerErrorKind::InvalidConstantValue(constant) if constant == "demo::DEFAULT_MODE"
+            only_constant(&bindings).value(),
+            ConstantValueDecl::Accessor { .. }
         ));
     }
 

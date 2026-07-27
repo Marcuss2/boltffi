@@ -86,7 +86,7 @@ pub enum DemoMode {
 #[data(impl)]
 impl DemoMode {
     pub const PREFERRED: Self = Self::Safe;
-    pub const FALLBACK: Self = Self::PREFERRED;
+    pub const FALLBACK: Self = DemoMode::PREFERRED;
     pub const VARIANT_COUNT: u8 = 2;
 }
 
