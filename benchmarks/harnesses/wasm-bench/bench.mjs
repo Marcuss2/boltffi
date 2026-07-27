@@ -6,10 +6,10 @@ const boltffiOverlay = await import('./build/generated/boltffi/node.js');
 await boltffiOverlay.initialized;
 const boltffiDemo = await import('./build/generated/boltffi-demo/node.js');
 await boltffiDemo.initialized;
-// Achatado uma vez, em vez de um Proxy consultado a cada chamada: um `get` trap
-// sobre um namespace de modulo custa ~200-300ns por acesso, o que dominava
-// completamente os benchmarks escalares e nao mede nada do BoltFFI.
-// A precedencia e a mesma do Proxy anterior: overlay antes de demo.
+// Flattened once instead of a Proxy consulted on every call: a `get` trap over
+// a module namespace costs ~200-300ns per access, which dominated the scalar
+// benchmarks and measures nothing about BoltFFI.
+// Precedence matches the previous Proxy: overlay before demo.
 const boltffi = { ...boltffiDemo, ...boltffiOverlay };
 
 const require = createRequire(import.meta.url);
