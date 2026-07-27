@@ -1373,11 +1373,12 @@ fn java_target_renders_associated_constants_on_the_owner() {
     let state = java_source(&output, "com.boltffi.demo", "State");
     let palette = java_source(&output, "com.boltffi.demo", "Palette");
 
-    assert!(color.contains("public static final Color BLACK = __boltffiReadConstant"));
+    assert!(color.contains("public static Color BLACK() {"));
+    assert!(color.contains("private static final class __BoltffiConstantHolder"));
     assert!(color.contains("public static final byte CHANNEL_COUNT = (byte) (4);"));
     assert!(color.contains("private static Color __boltffiReadConstant"));
     assert!(mode.contains("public static final Mode DEFAULT = Mode.FAST;"));
-    assert!(mode.contains("public static final Mode FALLBACK = __boltffiReadConstant"));
+    assert!(mode.contains("public static Mode FALLBACK() {"));
     assert!(mode.contains("public static final byte VARIANT_COUNT = (byte) (2);"));
     assert!(state.contains("public static final State INITIAL = new State.Idle();"));
     assert!(palette.contains("public static final byte MAX_COLORS = (byte) (16);"));
@@ -1404,7 +1405,8 @@ fn java_target_renders_top_level_constants_in_the_module() {
     assert!(module.contains("public static final double HALF = 0.5;"));
     assert!(module.contains("public static final String GREETING = \"hello\";"));
     assert!(module.contains("public static final Mode DEFAULT_MODE = Mode.FAST;"));
-    assert!(module.contains("public static final byte[] MAGIC = __boltffiReadConstant"));
+    assert!(module.contains("public static byte[] MAGIC() {"));
+    assert!(module.contains("private static final class __BoltffiConstantHolder"));
 }
 
 #[test]
