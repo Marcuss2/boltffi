@@ -100,6 +100,8 @@ const TOP_LEVEL_CONSTANTS: &str =
     include_str!("fixtures/source/constant/literals_and_accessors.rs");
 
 const DATA_ENUM_CONSTANT: &str = include_str!("fixtures/source/constant/data_enum.rs");
+const DATA_ENUM_ACCESSOR_CONSTANT: &str =
+    include_str!("fixtures/source/constant/data_enum_accessor.rs");
 
 const ENCODED_RECORD: &str = r#"
     #[data]
@@ -1373,11 +1375,12 @@ fn java_target_renders_associated_constants_on_the_owner() {
     let state = java_source(&output, "com.boltffi.demo", "State");
     let palette = java_source(&output, "com.boltffi.demo", "Palette");
 
-    assert!(color.contains("public static final Color BLACK = __boltffiReadConstant"));
+    assert!(color.contains("public static Color BLACK() {"));
+    assert!(color.contains("return __boltffiReadConstant"));
     assert!(color.contains("public static final byte CHANNEL_COUNT = (byte) (4);"));
     assert!(color.contains("private static Color __boltffiReadConstant"));
     assert!(mode.contains("public static final Mode DEFAULT = Mode.FAST;"));
-    assert!(mode.contains("public static final Mode FALLBACK = __boltffiReadConstant"));
+    assert!(mode.contains("public static Mode FALLBACK() {"));
     assert!(mode.contains("public static final byte VARIANT_COUNT = (byte) (2);"));
     assert!(state.contains("public static final State INITIAL = new State.Idle();"));
     assert!(palette.contains("public static final byte MAX_COLORS = (byte) (16);"));
@@ -1404,7 +1407,8 @@ fn java_target_renders_top_level_constants_in_the_module() {
     assert!(module.contains("public static final double HALF = 0.5;"));
     assert!(module.contains("public static final String GREETING = \"hello\";"));
     assert!(module.contains("public static final Mode DEFAULT_MODE = Mode.FAST;"));
-    assert!(module.contains("public static final byte[] MAGIC = __boltffiReadConstant"));
+    assert!(module.contains("public static byte[] MAGIC() {"));
+    assert!(module.contains("return __boltffiReadConstant"));
 }
 
 #[test]
@@ -1413,6 +1417,23 @@ fn java_target_renders_data_enum_constants_for_the_selected_enum_form() {
     let module = java_source(&output, "com.boltffi.demo", "Demo");
 
     assert!(module.contains("public static final State IDLE = State.Idle.INSTANCE;"));
+}
+
+#[test]
+fn java_target_renders_accessor_constants_inside_sealed_interfaces() {
+    let output = render_with_host(
+        DATA_ENUM_ACCESSOR_CONSTANT,
+        CoverageMode::Complete,
+        JavaHost::for_version("com.boltffi.demo", "Demo", JavaVersion::JAVA_17)
+            .expect("Java 17 host")
+            .desktop_loader(JavaDesktopLoader::None),
+    );
+    let state = java_source(&output, "com.boltffi.demo", "State");
+
+    assert!(state.contains("public sealed interface State"));
+    assert!(state.contains("public static State INITIAL_BUSY() {"));
+    assert!(state.contains("private static State __boltffiReadConstant"));
+    assert!(!state.contains("class __BoltffiConstantHolder"));
 }
 
 #[test]
@@ -2664,6 +2685,21 @@ fn generated_top_level_constants_compile_for_java_eight_when_available() {
                 &format!("boltffi-java-top-level-constants-{index}"),
             );
         });
+}
+
+#[test]
+fn generated_sealed_interface_accessor_constants_compile_for_java_seventeen_when_available() {
+    let Some(compiler) = JavaCompiler::discover() else {
+        return;
+    };
+
+    let output = render_with_host(
+        DATA_ENUM_ACCESSOR_CONSTANT,
+        CoverageMode::Complete,
+        JavaHost::for_version("com.boltffi.demo", "Demo", JavaVersion::JAVA_17)
+            .expect("Java 17 host"),
+    );
+    compile_generated_java_for_release(&compiler, &output, "boltffi-java-sealed-constants", 17);
 }
 
 #[test]

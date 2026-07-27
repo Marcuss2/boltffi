@@ -186,7 +186,7 @@ impl Constant {
     pub fn value(&self) -> Option<&Expression> {
         match &self.body {
             Body::Inline(value) => Some(value),
-            Body::Accessor(_) => None,
+            Body::Accessor { .. } => None,
         }
     }
 
