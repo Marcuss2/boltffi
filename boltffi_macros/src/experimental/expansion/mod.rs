@@ -750,6 +750,23 @@ mod tests {
         source
     }
 
+    fn async_option_status_return_contract() -> SourceContract {
+        let mut function = FunctionDef::new(
+            FunctionId::new("demo::maybe_status"),
+            CanonicalName::single("maybe_status"),
+        );
+        function.execution = ExecutionKind::Async;
+        function.returns = ReturnDef::value(TypeExpr::option(TypeExpr::enumeration(
+            EnumId::new("demo::Status"),
+            Path::single("Status"),
+        )));
+
+        let mut source = SourceContract::new(PackageInfo::new("demo", None));
+        source.enums.push(status_enum());
+        source.functions.push(function);
+        source
+    }
+
     fn async_ping_contract() -> SourceContract {
         let mut function =
             FunctionDef::new(FunctionId::new("demo::ping"), CanonicalName::single("ping"));
@@ -9097,6 +9114,29 @@ mod tests {
                 }
             }
             .to_string()
+        );
+    }
+
+    #[test]
+    fn wasm_async_option_c_style_enum_return_packs_the_discriminant() {
+        // An enum cannot be cast straight to f64 (E0606); it has to go through
+        // its discriminant first, the same as the synchronous path does.
+        let source = async_option_status_return_contract();
+        let lowered = lower_with_declarations::<Wasm32>(&source).expect("lowered bindings");
+        let expansion = Expansion::new(&lowered);
+        let syntax = syn::parse_quote! {
+            pub async fn maybe_status() -> Option<Status> {
+                Some(Status::Ready)
+            }
+        };
+
+        let tokens =
+            expand_function(&expansion, &source.functions[0], syntax).expect("expanded function");
+        let rendered = tokens.to_string();
+
+        assert!(
+            rendered.contains("Passable :: pack"),
+            "async optional enum return must pack the discriminant: {rendered}"
         );
     }
 
