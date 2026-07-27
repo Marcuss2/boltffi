@@ -7,8 +7,7 @@ namespace {{ enumeration.namespace }}
 {
 {{ enumeration.documentation }}{% if enumeration.c_style %}    public enum {{ enumeration.name }} : {{ enumeration.underlying_type }}
     {
-{% for variant in enumeration.variants %}{{ variant.documentation }}        {{ variant.name }} = {{ variant.discriminant }}{% if !loop.last || !enumeration.constant_aliases.is_empty() %},{% endif %}
-{% endfor %}{% for alias in enumeration.constant_aliases %}{{ alias }}{% if !loop.last %},{% endif %}
+{% for variant in enumeration.variants %}{{ variant.documentation }}        {{ variant.name }} = {{ variant.discriminant }}{% if !loop.last %},{% endif %}
 {% endfor %}    }
 {%- if !constants.is_empty() %}
 

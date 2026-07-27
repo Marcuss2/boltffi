@@ -1,6 +1,6 @@
 use boltffi_binding::{
-    CStyleEnumDecl, ConstantDecl, ConstantOwner, ConstantValueDecl, DefaultValue, EnumDecl,
-    FloatValue, Native, Primitive, TypeRef,
+    ConstantDecl, ConstantOwner, ConstantValueDecl, DefaultValue, EnumDecl, FloatValue, Native,
+    Primitive, TypeRef,
 };
 
 use crate::{
@@ -87,55 +87,6 @@ impl AssociatedConstants {
             .map(|constant| Constant::from_declaration(constant, namespace, bridge, context))
             .collect::<Result<Vec<_>>>()
             .map(Self)
-    }
-
-    pub fn from_c_style_enum(
-        enumeration: &CStyleEnumDecl<Native>,
-        namespace: &Namespace,
-        bridge: &CBridgeContract,
-        context: &RenderContext<Native>,
-    ) -> Result<(Vec<String>, Self)> {
-        context
-            .associated_constants(ConstantOwner::Enum(enumeration.id()))
-            .try_fold(
-                (Vec::new(), Vec::new()),
-                |(mut aliases, mut constants), declaration| {
-                    let constant_name = Name::new(declaration.name()).pascal()?;
-                    let colliding_variant = enumeration.variants().iter().try_fold(
-                        None,
-                        |colliding_variant, variant| -> Result<_> {
-                            match colliding_variant {
-                                Some(_) => Ok(colliding_variant),
-                                None => {
-                                    let variant_name = Name::new(variant.name()).pascal()?;
-                                    Ok((variant_name == constant_name).then_some(variant))
-                                }
-                            }
-                        },
-                    )?;
-                    match (declaration.owned_enum_variant_alias(), colliding_variant) {
-                        (Some((owner, aliased_variant)), Some(colliding_variant))
-                            if owner == enumeration.id()
-                                && aliased_variant == colliding_variant.name() => {}
-                        (Some((owner, aliased_variant)), None) if owner == enumeration.id() => {
-                            let documentation =
-                                Documentation::summary(declaration.meta().doc(), "        ");
-                            let aliased_variant = Name::new(aliased_variant).pascal()?;
-                            aliases.push(format!(
-                                "{documentation}        {constant_name} = {aliased_variant}"
-                            ));
-                        }
-                        _ => constants.push(Constant::from_declaration(
-                            declaration,
-                            namespace,
-                            bridge,
-                            context,
-                        )?),
-                    }
-                    Ok((aliases, constants))
-                },
-            )
-            .map(|(aliases, constants)| (aliases, Self(constants)))
     }
 
     pub fn members(&self) -> Result<Vec<String>> {

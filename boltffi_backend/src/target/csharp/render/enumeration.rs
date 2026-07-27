@@ -34,7 +34,6 @@ pub(in crate::target::csharp) struct Enumeration {
     underlying_type: TypeFragment,
     variants: Vec<Variant>,
     data_variants: Vec<DataVariant>,
-    constant_aliases: Vec<String>,
     constants: AssociatedConstants,
     methods: Vec<Function>,
     diagnostics: Vec<Diagnostic>,
@@ -168,8 +167,12 @@ impl Enumeration {
                 ),
             )?;
         }
-        let (constant_aliases, constants) =
-            AssociatedConstants::from_c_style_enum(declaration, &namespace, bridge, context)?;
+        let constants = AssociatedConstants::from_owner(
+            ConstantOwner::Enum(declaration.id()),
+            &namespace,
+            bridge,
+            context,
+        )?;
         Ok(Self {
             documentation: Documentation::summary(declaration.meta().doc(), "    "),
             namespace,
@@ -179,7 +182,6 @@ impl Enumeration {
             underlying_type: primitive_type(primitive),
             variants,
             data_variants: Vec::new(),
-            constant_aliases,
             constants,
             methods,
             diagnostics,
@@ -319,7 +321,6 @@ impl Enumeration {
             underlying_type: TypeFragment::void(),
             variants: Vec::new(),
             data_variants,
-            constant_aliases: Vec::new(),
             constants,
             methods,
             diagnostics,

@@ -3371,8 +3371,8 @@ public static class DemoTest
     {
         DemoCase("case:constants.associated.should_expose_values_on_exported_types");
         Require(
-            global::Demo.DemoMode.Preferred == global::Demo.DemoMode.Safe,
-            "DemoMode.Preferred"
+            global::Demo.DemoModeConstants.Preferred == global::Demo.DemoMode.Safe,
+            "DemoModeConstants.Preferred"
         );
         Require(
             global::Demo.DemoModeConstants.Fallback == global::Demo.DemoMode.Safe,
