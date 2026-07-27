@@ -15,8 +15,7 @@ use super::super::{
     primitive::Scalar,
     render::{Type, direct_vector::DirectVector, scalar_option::ScalarOption},
     syntax::{
-        ArgumentList, Expression, Identifier, MemberName, MethodDeclaration, Statement,
-        StringLiteral, TypeName,
+        ArgumentList, Expression, Identifier, MemberName, MethodDeclaration, Statement, TypeName,
     },
 };
 use super::closure::ClosureAdapter;
@@ -604,18 +603,17 @@ impl CallReceiver {
         })
     }
 
-    fn class(class: &TypeName) -> Self {
-        let disposed = Expression::property(Expression::this(), Identifier::known("_disposed"));
-        let message = format!("{class} has been disposed");
-        let error = Expression::construct(
-            "Error",
-            [Expression::string(StringLiteral::new(&message))]
-                .into_iter()
-                .collect::<ArgumentList>(),
+    fn class(_class: &TypeName) -> Self {
+        // Calls the inherited guard rather than inlining the check and its
+        // message into every method body.
+        let assert = Expression::call(
+            Expression::this(),
+            Identifier::known("_assertNotDisposed"),
+            ArgumentList::default(),
         );
         Self {
             parameter: None,
-            setup: vec![Statement::throw_when(disposed, error)],
+            setup: vec![Statement::expression(assert)],
             arguments: vec![Expression::property(
                 Expression::this(),
                 Identifier::known("_handle"),
