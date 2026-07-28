@@ -131,7 +131,7 @@ jobs:
         with:
           components: miri
       - run: cargo +nightly miri setup
-      - run: cargo +nightly miri test -p boltffi -p boltffi_tests
+      - run: cargo +nightly miri test -p boltffi -p boltffi_core -p boltffi_tests
 
   android-packaging:
     name: Android Packaging (${{ matrix.os }})
