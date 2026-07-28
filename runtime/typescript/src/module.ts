@@ -180,8 +180,9 @@ export class BoltFFIModule {
   readonly asyncManager: AsyncFutureManager;
   readonly streamManager: StreamPollManager;
   private _memory: WebAssembly.Memory;
-  /** Reused by `readPackedBuffer`; never escapes a single read. */
-  private readonly borrowedReader = new WireReader(EMPTY_BUFFER, 0, true);
+  /** Lent out by `readPackedBuffer`, one read at a time. */
+  private readonly borrowedReader = new WireReader(EMPTY_BUFFER, 0, true, 0);
+  private borrowedReaderInUse = false;
   private _encoder: TextEncoder;
   private _decoder: TextDecoder;
   private _writerPool: Map<number, WriterAlloc[]>;
@@ -1119,18 +1120,37 @@ export class BoltFFIModule {
    *
    * Safe because the reader is in borrowed mode: reads that would hand out a
    * view over that memory copy instead, so nothing the callback returns can
-   * outlive the free below. The reader itself must not escape `read`, which
-   * holds for the generated codecs — they decode and return a value.
+   * outlive the free below. The reader spans exactly the payload, so a
+   * malformed length throws rather than reading past it, and it is detached
+   * afterwards, so a reader that escapes `read` throws rather than reading
+   * freed memory. `read` returning a promise is still the caller's problem:
+   * the payload is freed when `read` returns, not when the promise settles.
    */
   readPackedBuffer<T>(packed: bigint, read: (reader: WireReader) => T): T {
     const { pointer, length } = this.unpackPacked(packed);
-    if (pointer === 0 || length === 0) {
-      return read(this.borrowedReader.reset(EMPTY_BUFFER, 0, true));
+    const empty = pointer === 0 || length === 0;
+    const buffer = empty ? EMPTY_BUFFER : this._memory.buffer;
+    const start = empty ? 0 : pointer;
+    const size = empty ? 0 : length;
+
+    // A nested call would reset the reader the outer one is still using, so it
+    // gets its own. Generated codecs never nest, but the method is public.
+    if (this.borrowedReaderInUse) {
+      const reader = new WireReader(buffer, start, true, size);
+      try {
+        return read(reader);
+      } finally {
+        if (!empty) this.freePacked(pointer, length);
+      }
     }
+
+    this.borrowedReaderInUse = true;
     try {
-      return read(this.borrowedReader.reset(this._memory.buffer, pointer, true));
+      return read(this.borrowedReader.reset(buffer, start, size, true));
     } finally {
-      this.freePacked(pointer, length);
+      this.borrowedReader.invalidate();
+      this.borrowedReaderInUse = false;
+      if (!empty) this.freePacked(pointer, length);
     }
   }
 
