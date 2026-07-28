@@ -2,6 +2,8 @@ import { WireReader, WireWriter } from "./wire.js";
 import type { WasmWireWriterAllocator } from "./wire.js";
 import { StreamPollManager } from "./stream.js";
 
+const EMPTY_BUFFER = new ArrayBuffer(0);
+
 const FFI_BUF_DESCRIPTOR_SIZE = 16;
 const FFI_STATUS_SIZE = 4;
 const OPTION_F64_NONE = 0xffff_ffff_ffff_ffffn;
@@ -178,6 +180,9 @@ export class BoltFFIModule {
   readonly asyncManager: AsyncFutureManager;
   readonly streamManager: StreamPollManager;
   private _memory: WebAssembly.Memory;
+  /** Lent out by `readPackedBuffer`, one read at a time. */
+  private readonly borrowedReader = new WireReader(EMPTY_BUFFER, 0, true, 0);
+  private borrowedReaderInUse = false;
   private _encoder: TextEncoder;
   private _decoder: TextDecoder;
   private _writerPool: Map<number, WriterAlloc[]>;
@@ -1104,6 +1109,50 @@ export class BoltFFIModule {
   }
 
 
+
+  /**
+   * Reads a packed return in place, without copying it out of wasm memory.
+   *
+   * `takePackedBuffer` copies the payload into a fresh `ArrayBuffer` and wraps
+   * it in a new `DataView` on every call, which dominates the cost of decoding
+   * a small record. Here the reader borrows wasm memory instead, and the
+   * payload is freed once `read` returns.
+   *
+   * Safe because the reader is in borrowed mode: reads that would hand out a
+   * view over that memory copy instead, so nothing the callback returns can
+   * outlive the free below. The reader spans exactly the payload, so a
+   * malformed length throws rather than reading past it, and it is detached
+   * afterwards, so a reader that escapes `read` throws rather than reading
+   * freed memory. `read` returning a promise is still the caller's problem:
+   * the payload is freed when `read` returns, not when the promise settles.
+   */
+  readPackedBuffer<T>(packed: bigint, read: (reader: WireReader) => T): T {
+    const { pointer, length } = this.unpackPacked(packed);
+    const empty = pointer === 0 || length === 0;
+    const buffer = empty ? EMPTY_BUFFER : this._memory.buffer;
+    const start = empty ? 0 : pointer;
+    const size = empty ? 0 : length;
+
+    // A nested call would reset the reader the outer one is still using, so it
+    // gets its own. Generated codecs never nest, but the method is public.
+    if (this.borrowedReaderInUse) {
+      const reader = new WireReader(buffer, start, true, size);
+      try {
+        return read(reader);
+      } finally {
+        if (!empty) this.freePacked(pointer, length);
+      }
+    }
+
+    this.borrowedReaderInUse = true;
+    try {
+      return read(this.borrowedReader.reset(buffer, start, size, true));
+    } finally {
+      this.borrowedReader.invalidate();
+      this.borrowedReaderInUse = false;
+      if (!empty) this.freePacked(pointer, length);
+    }
+  }
 
   takePackedBuffer(packed: bigint): WireReader {
     const { pointer, length } = this.unpackPacked(packed);

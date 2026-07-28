@@ -1,4 +1,5 @@
 const UTF8_DECODER = new TextDecoder("utf-8");
+const EMPTY_VIEW = new DataView(new ArrayBuffer(0));
 const UTF8_ENCODER = new TextEncoder();
 
 type TypedArrayConstructor<T extends ArrayBufferView> = {
@@ -10,10 +11,70 @@ type TypedArrayConstructor<T extends ArrayBufferView> = {
 export class WireReader {
   private view: DataView;
   private offset: number;
+  /**
+   * True when the view points at wasm memory the caller still owns, rather
+   * than at a private copy.
+   *
+   * Reads that would otherwise hand out a view over that memory copy instead,
+   * so a returned array cannot outlive the buffer it borrows from. Everything
+   * else — scalars, strings, `readBytes` — already produces owned values.
+   */
+  private borrowed: boolean;
 
-  constructor(buffer: ArrayBuffer, offset = 0) {
-    this.view = new DataView(buffer);
-    this.offset = offset;
+  /**
+   * The view spans exactly the payload, so `offset` is relative to it and any
+   * read past the end throws instead of reaching into neighbouring memory.
+   * Omitting `length` extends the view to the end of `buffer`.
+   */
+  constructor(
+    buffer: ArrayBuffer,
+    offset = 0,
+    borrowed = false,
+    length?: number
+  ) {
+    this.view =
+      length === undefined
+        ? new DataView(buffer, offset)
+        : new DataView(buffer, offset, length);
+    this.offset = 0;
+    this.borrowed = borrowed;
+  }
+
+  /** Points an existing reader at another payload, reusing the instance. */
+  reset(
+    buffer: ArrayBuffer,
+    offset: number,
+    length: number,
+    borrowed: boolean
+  ): this {
+    this.view = new DataView(buffer, offset, length);
+    this.offset = 0;
+    this.borrowed = borrowed;
+    return this;
+  }
+
+  /**
+   * Detaches the reader from whatever it was pointing at, so a reader that
+   * outlives its payload throws rather than reading freed memory. Costs
+   * nothing — the empty view is shared.
+   */
+  invalidate(): void {
+    this.view = EMPTY_VIEW;
+    this.offset = 0;
+  }
+
+  /**
+   * Reserves `byteLength` bytes and returns their absolute index in the
+   * underlying buffer. Reads that build a typed array bypass the view's own
+   * bounds check, so they go through here to keep it.
+   */
+  private take(byteLength: number): number {
+    const start = this.offset;
+    if (byteLength < 0 || start + byteLength > this.view.byteLength) {
+      throw new RangeError("Wire read past the end of the payload");
+    }
+    this.offset = start + byteLength;
+    return this.view.byteOffset + start;
   }
 
   readBool(): boolean {
@@ -96,36 +157,31 @@ export class WireReader {
 
   readString(): string {
     const len = this.readU32();
-    const bytes = new Uint8Array(this.view.buffer, this.offset, len);
-    this.offset += len;
+    const bytes = new Uint8Array(this.view.buffer, this.take(len), len);
     return UTF8_DECODER.decode(bytes);
   }
 
   readBytes(): Uint8Array {
     const len = this.readU32();
-    const bytes = new Uint8Array(this.view.buffer, this.offset, len);
-    this.offset += len;
+    const bytes = new Uint8Array(this.view.buffer, this.take(len), len);
     return bytes.slice();
   }
 
   readI8Array(): Int8Array {
     const len = this.readU32();
-    const result = new Int8Array(this.view.buffer, this.offset, len);
-    this.offset += len;
-    return result;
+    const result = new Int8Array(this.view.buffer, this.take(len), len);
+    return this.borrowed ? result.slice() : result;
   }
 
   readU8Array(): Uint8Array {
     const len = this.readU32();
-    const result = new Uint8Array(this.view.buffer, this.offset, len);
-    this.offset += len;
-    return result;
+    const result = new Uint8Array(this.view.buffer, this.take(len), len);
+    return this.borrowed ? result.slice() : result;
   }
 
   readBoolArray(): boolean[] {
     const len = this.readU32();
-    const values = new Uint8Array(this.view.buffer, this.offset, len);
-    this.offset += len;
+    const values = new Uint8Array(this.view.buffer, this.take(len), len);
     return Array.from(values, (value) => value !== 0);
   }
 
@@ -133,10 +189,9 @@ export class WireReader {
     typedArray: TypedArrayConstructor<T>,
     len: number
   ): T {
-    const byteOffset = this.offset;
     const byteLength = len * typedArray.BYTES_PER_ELEMENT;
-    this.offset += byteLength;
-    if (byteOffset % typedArray.BYTES_PER_ELEMENT === 0) {
+    const byteOffset = this.take(byteLength);
+    if (!this.borrowed && byteOffset % typedArray.BYTES_PER_ELEMENT === 0) {
       return new typedArray(this.view.buffer, byteOffset, len);
     }
     const copy = new Uint8Array(this.view.buffer, byteOffset, byteLength).slice().buffer;
