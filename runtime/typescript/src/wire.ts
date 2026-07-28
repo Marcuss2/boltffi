@@ -10,10 +10,30 @@ type TypedArrayConstructor<T extends ArrayBufferView> = {
 export class WireReader {
   private view: DataView;
   private offset: number;
+  /**
+   * True when the view points at wasm memory the caller still owns, rather
+   * than at a private copy.
+   *
+   * Reads that would otherwise hand out a view over that memory copy instead,
+   * so a returned array cannot outlive the buffer it borrows from. Everything
+   * else — scalars, strings, `readBytes` — already produces owned values.
+   */
+  private borrowed: boolean;
 
-  constructor(buffer: ArrayBuffer, offset = 0) {
+  constructor(buffer: ArrayBuffer, offset = 0, borrowed = false) {
     this.view = new DataView(buffer);
     this.offset = offset;
+    this.borrowed = borrowed;
+  }
+
+  /** Points an existing reader at another region, avoiding a fresh DataView. */
+  reset(buffer: ArrayBuffer, offset: number, borrowed: boolean): this {
+    if (this.view.buffer !== buffer) {
+      this.view = new DataView(buffer);
+    }
+    this.offset = offset;
+    this.borrowed = borrowed;
+    return this;
   }
 
   readBool(): boolean {
@@ -112,14 +132,14 @@ export class WireReader {
     const len = this.readU32();
     const result = new Int8Array(this.view.buffer, this.offset, len);
     this.offset += len;
-    return result;
+    return this.borrowed ? result.slice() : result;
   }
 
   readU8Array(): Uint8Array {
     const len = this.readU32();
     const result = new Uint8Array(this.view.buffer, this.offset, len);
     this.offset += len;
-    return result;
+    return this.borrowed ? result.slice() : result;
   }
 
   readBoolArray(): boolean[] {
@@ -136,7 +156,7 @@ export class WireReader {
     const byteOffset = this.offset;
     const byteLength = len * typedArray.BYTES_PER_ELEMENT;
     this.offset += byteLength;
-    if (byteOffset % typedArray.BYTES_PER_ELEMENT === 0) {
+    if (!this.borrowed && byteOffset % typedArray.BYTES_PER_ELEMENT === 0) {
       return new typedArray(this.view.buffer, byteOffset, len);
     }
     const copy = new Uint8Array(this.view.buffer, byteOffset, byteLength).slice().buffer;

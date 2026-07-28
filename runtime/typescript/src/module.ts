@@ -2,6 +2,8 @@ import { WireReader, WireWriter } from "./wire.js";
 import type { WasmWireWriterAllocator } from "./wire.js";
 import { StreamPollManager } from "./stream.js";
 
+const EMPTY_BUFFER = new ArrayBuffer(0);
+
 const FFI_BUF_DESCRIPTOR_SIZE = 16;
 const FFI_STATUS_SIZE = 4;
 const OPTION_F64_NONE = 0xffff_ffff_ffff_ffffn;
@@ -178,6 +180,8 @@ export class BoltFFIModule {
   readonly asyncManager: AsyncFutureManager;
   readonly streamManager: StreamPollManager;
   private _memory: WebAssembly.Memory;
+  /** Reused by `readPackedBuffer`; never escapes a single read. */
+  private readonly borrowedReader = new WireReader(EMPTY_BUFFER, 0, true);
   private _encoder: TextEncoder;
   private _decoder: TextDecoder;
   private _writerPool: Map<number, WriterAlloc[]>;
@@ -1104,6 +1108,31 @@ export class BoltFFIModule {
   }
 
 
+
+  /**
+   * Reads a packed return in place, without copying it out of wasm memory.
+   *
+   * `takePackedBuffer` copies the payload into a fresh `ArrayBuffer` and wraps
+   * it in a new `DataView` on every call, which dominates the cost of decoding
+   * a small record. Here the reader borrows wasm memory instead, and the
+   * payload is freed once `read` returns.
+   *
+   * Safe because the reader is in borrowed mode: reads that would hand out a
+   * view over that memory copy instead, so nothing the callback returns can
+   * outlive the free below. The reader itself must not escape `read`, which
+   * holds for the generated codecs — they decode and return a value.
+   */
+  readPackedBuffer<T>(packed: bigint, read: (reader: WireReader) => T): T {
+    const { pointer, length } = this.unpackPacked(packed);
+    if (pointer === 0 || length === 0) {
+      return read(this.borrowedReader.reset(EMPTY_BUFFER, 0, true));
+    }
+    try {
+      return read(this.borrowedReader.reset(this._memory.buffer, pointer, true));
+    } finally {
+      this.freePacked(pointer, length);
+    }
+  }
 
   takePackedBuffer(packed: bigint): WireReader {
     const { pointer, length } = this.unpackPacked(packed);
