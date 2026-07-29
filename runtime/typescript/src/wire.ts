@@ -401,8 +401,14 @@ export function matchWireResult<T, E, R>(
 }
 
 export class WireWriter {
-  private localBuffer: ArrayBuffer;
-  private localView: DataView;
+  /**
+   * Only used when the writer is not bound to a wasm region. A region-bound
+   * writer never reads either, so both are left unallocated for it — they are
+   * two allocations per call on the callback trampoline, which builds one
+   * writer per element.
+   */
+  private localBuffer: ArrayBuffer | null;
+  private localView: DataView | null;
   private wasmAllocator: WasmWireWriterAllocator | null;
   private wasmPtr: number;
   private allocationSize: number;
@@ -410,10 +416,11 @@ export class WireWriter {
   private cachedWasmView: DataView | null;
   private cachedWasmBuffer: ArrayBuffer | null;
 
-  constructor(initialSize = 256) {
+  constructor(initialSize = 256, allocateLocal = true) {
     const normalizedSize = Math.max(initialSize, 1);
-    this.localBuffer = new ArrayBuffer(normalizedSize);
-    this.localView = new DataView(this.localBuffer);
+    this.localBuffer = allocateLocal ? new ArrayBuffer(normalizedSize) : null;
+    this.localView =
+      this.localBuffer === null ? null : new DataView(this.localBuffer);
     this.wasmAllocator = null;
     this.wasmPtr = 0;
     this.allocationSize = normalizedSize;
@@ -438,16 +445,30 @@ export class WireWriter {
     return writer;
   }
 
-  static withWasmRegion(pointer: number, size: number, buffer: () => ArrayBuffer): WireWriter {
-    const writer = new WireWriter(1);
-    writer.wasmAllocator = {
-      alloc: () => pointer,
+  /** Allocator for a caller-owned region: it can only report the buffer. */
+  static fixedRegionAllocator(buffer: () => ArrayBuffer): WasmWireWriterAllocator {
+    return {
+      alloc: () => {
+        throw new Error("Fixed WASM region cannot allocate");
+      },
       realloc: () => {
         throw new Error("Fixed WASM region exceeded its capacity");
       },
       free: () => {},
       buffer,
     };
+  }
+
+  static withWasmRegion(
+    pointer: number,
+    size: number,
+    buffer: () => ArrayBuffer,
+    allocator?: WasmWireWriterAllocator
+  ): WireWriter {
+    const writer = new WireWriter(1, false);
+    // `allocator` lets the caller hand in one shared object instead of building
+    // a fresh one with four closures per call.
+    writer.wasmAllocator = allocator ?? WireWriter.fixedRegionAllocator(buffer);
     writer.wasmPtr = pointer;
     writer.allocationSize = size;
     return writer;
@@ -473,17 +494,30 @@ export class WireWriter {
     return this.allocationSize;
   }
 
+  private ensureLocalBuffer(): ArrayBuffer {
+    let buffer = this.localBuffer;
+    if (buffer === null) {
+      buffer = new ArrayBuffer(Math.max(this.allocationSize, 1));
+      this.localBuffer = buffer;
+      this.localView = new DataView(buffer);
+    }
+    return buffer;
+  }
+
   private inWasmMemory(): boolean {
     return this.wasmAllocator !== null;
   }
 
   private currentBuffer(): ArrayBuffer {
-    return this.inWasmMemory() ? this.wasmAllocator!.buffer() : this.localBuffer;
+    return this.inWasmMemory()
+      ? this.wasmAllocator!.buffer()
+      : this.ensureLocalBuffer();
   }
 
   private currentView(): DataView {
     if (!this.inWasmMemory()) {
-      return this.localView;
+      this.ensureLocalBuffer();
+      return this.localView as DataView;
     }
     const buffer = this.wasmAllocator!.buffer();
     if (this.cachedWasmBuffer !== buffer) {
@@ -519,9 +553,9 @@ export class WireWriter {
       return;
     }
     const newBuffer = new ArrayBuffer(newSize);
-    new Uint8Array(newBuffer).set(new Uint8Array(this.localBuffer));
+    new Uint8Array(newBuffer).set(new Uint8Array(this.ensureLocalBuffer()));
     this.localBuffer = newBuffer;
-    this.localView = new DataView(this.localBuffer);
+    this.localView = new DataView(newBuffer);
     this.allocationSize = newSize;
   }
 
