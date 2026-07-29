@@ -4,6 +4,20 @@ import { StreamPollManager } from "./stream.js";
 
 const EMPTY_BUFFER = new ArrayBuffer(0);
 
+/**
+ * Widens bytes to booleans.
+ *
+ * `Array.from` with a mapper walks the TypedArray through the iterator
+ * protocol, which costs an order of magnitude more than indexing it.
+ */
+function toBoolArray(bytes: Uint8Array): boolean[] {
+  const result = new Array<boolean>(bytes.length);
+  for (let index = 0; index < bytes.length; index++) {
+    result[index] = bytes[index] !== 0;
+  }
+  return result;
+}
+
 const LITTLE_ENDIAN = new Uint8Array(new Uint32Array([1]).buffer)[0] === 1;
 const PACKED_LOW = LITTLE_ENDIAN ? 0 : 1;
 const PACKED_HIGH = LITTLE_ENDIAN ? 1 : 0;
@@ -530,7 +544,7 @@ export class BoltFFIModule {
   }
 
   borrowBoolArray(ptr: number, len: number): boolean[] {
-    return Array.from(this.getBytes().subarray(ptr, ptr + len), (value) => value !== 0);
+    return toBoolArray(this.getBytes().subarray(ptr, ptr + len));
   }
 
   borrowI8Array(ptr: number, len: number): Int8Array {
@@ -921,8 +935,7 @@ export class BoltFFIModule {
   takeBufBoolArray(bufPtr: number): boolean[] {
     const { ptr, len } = this.readBufDescriptor(bufPtr);
     if (ptr === 0) return [];
-    const bytes = this.getBytes().subarray(ptr, ptr + len);
-    return Array.from(bytes, (value) => value !== 0);
+    return toBoolArray(this.getBytes().subarray(ptr, ptr + len));
   }
 
   takeBufStructArray<T>(bufPtr: number, stride: number, decode: (view: DataView, offset: number) => T): T[] {
@@ -931,7 +944,11 @@ export class BoltFFIModule {
     const copy = new Uint8Array(this._memory.buffer, ptr, byteLen).slice();
     const view = new DataView(copy.buffer, copy.byteOffset, copy.byteLength);
     const count = (byteLen / stride) | 0;
-    return Array.from({ length: count }, (_, index) => decode(view, index * stride));
+    const result = new Array<T>(count);
+    for (let index = 0; index < count; index++) {
+      result[index] = decode(view, index * stride);
+    }
+    return result;
   }
 
   writeToMemory(ptr: number, data: Uint8Array): void {
@@ -1357,8 +1374,7 @@ export class BoltFFIModule {
   takeSlotBoolArray(): boolean[] {
     const { ptr, len, cap, align } = this.readSlot();
     if (ptr === 0) return [];
-    const bytes = this.getBytes().subarray(ptr, ptr + len);
-    const result = Array.from(bytes, (b) => b !== 0);
+    const result = toBoolArray(this.getBytes().subarray(ptr, ptr + len));
     this.freeSlotBuf(ptr, cap, align);
     return result;
   }

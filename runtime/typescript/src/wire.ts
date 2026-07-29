@@ -215,7 +215,13 @@ export class WireReader {
   readBoolArray(): boolean[] {
     const len = this.readU32();
     const values = new Uint8Array(this.view.buffer, this.take(len), len);
-    return Array.from(values, (value) => value !== 0);
+    // `Array.from` with a mapper walks a TypedArray through the iterator
+    // protocol, which costs an order of magnitude more than indexing it.
+    const result = new Array<boolean>(len);
+    for (let index = 0; index < len; index++) {
+      result[index] = values[index] !== 0;
+    }
+    return result;
   }
 
   private readTypedArray<T extends ArrayBufferView>(
@@ -289,9 +295,10 @@ export class WireReader {
 
   readArray<T>(readElement: () => T): T[] {
     const len = this.readU32();
-    const result: T[] = [];
-    for (let i = 0; i < len; i++) {
-      result.push(readElement());
+    // The length is known, so the array is sized once rather than grown.
+    const result = new Array<T>(len);
+    for (let index = 0; index < len; index++) {
+      result[index] = readElement();
     }
     return result;
   }
