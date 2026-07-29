@@ -496,3 +496,12 @@ Generates a binary-only SwiftPM package intended to be depended on by a separate
 
 - `Package.swift` exposes only the binary target `{XcframeworkName}FFI`.
 - Generated Swift bindings are written to `{swift.output}/BoltFFIGenerated/{module_name}.swift` so you can include them in your wrapper target.
+## Dart
+
+### `[targets.dart]` (optional)
+- `enabled` (bool): Whether Dart generation and packaging are active.
+  - Default: `false`
+- `output` (path): Generated Dart package root directory.
+  - Default: `dist/dart`
+- `native_targets` (array of strings, optional): Dart native build targets.
+  - Default: `["android:arm64", "android:armv7", "android:x86_64", "ios:arm64", "ios_sim:arm64", "ios_sim:x86_64", "linux:arm64", "linux:x86_64", "macos:arm64", "macos:x86_64"]`.
