@@ -24,19 +24,13 @@ export class WireReader {
    */
   private borrowed: boolean;
   private bytes: Uint8Array | null = null;
+  /** The reader's buffer, held directly to keep `view.buffer` off hot paths. */
   private bufferRef: ArrayBuffer;
-
-  /**
-   * The view spans exactly the payload, so `offset` is relative to it and any
-   * read past the end throws instead of reaching into neighbouring memory.
-   * Omitting `length` extends the view to the end of `buffer`.
-   */
   /**
    * `limit` is the end of the payload. A bounded `DataView` would enforce it
    * for free, but allocating one per call costs more than the checks do.
    */
   private limit: number;
-  private bufferRef: ArrayBuffer;
 
   constructor(
     buffer: ArrayBuffer,
@@ -49,7 +43,6 @@ export class WireReader {
     this.offset = offset;
     this.limit = length === undefined ? buffer.byteLength : offset + length;
     this.borrowed = borrowed;
-    this.bufferRef = buffer;
   }
 
   /** Points an existing reader at another payload, reusing the instance. */
@@ -63,14 +56,13 @@ export class WireReader {
     if (this.bufferRef !== buffer) {
       this.view = new DataView(buffer);
       this.bufferRef = buffer;
+      // `asBytes` only notices detachment, not a swap between two live
+      // buffers, so the cache has to be dropped here.
+      this.bytes = null;
     }
     this.offset = offset;
     this.limit = offset + length;
     this.borrowed = borrowed;
-    if (this.bufferRef !== buffer) {
-      this.bufferRef = buffer;
-      this.bytes = null;
-    }
     return this;
   }
 
