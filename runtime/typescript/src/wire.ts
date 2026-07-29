@@ -1,5 +1,4 @@
 const UTF8_DECODER = new TextDecoder("utf-8");
-const EMPTY_VIEW = new DataView(new ArrayBuffer(0));
 const UTF8_ENCODER = new TextEncoder();
 
 type TypedArrayConstructor<T extends ArrayBufferView> = {
@@ -26,17 +25,23 @@ export class WireReader {
    * read past the end throws instead of reaching into neighbouring memory.
    * Omitting `length` extends the view to the end of `buffer`.
    */
+  /**
+   * `limit` is the end of the payload. A bounded `DataView` would enforce it
+   * for free, but allocating one per call costs more than the checks do.
+   */
+  private limit: number;
+  private bufferRef: ArrayBuffer;
+
   constructor(
     buffer: ArrayBuffer,
     offset = 0,
     borrowed = false,
     length?: number
   ) {
-    this.view =
-      length === undefined
-        ? new DataView(buffer, offset)
-        : new DataView(buffer, offset, length);
-    this.offset = 0;
+    this.view = new DataView(buffer);
+    this.bufferRef = buffer;
+    this.offset = offset;
+    this.limit = length === undefined ? buffer.byteLength : offset + length;
     this.borrowed = borrowed;
   }
 
@@ -47,8 +52,13 @@ export class WireReader {
     length: number,
     borrowed: boolean
   ): this {
-    this.view = new DataView(buffer, offset, length);
-    this.offset = 0;
+    // Comparing `this.view.buffer` here would read two accessors per call.
+    if (this.bufferRef !== buffer) {
+      this.view = new DataView(buffer);
+      this.bufferRef = buffer;
+    }
+    this.offset = offset;
+    this.limit = offset + length;
     this.borrowed = borrowed;
     return this;
   }
@@ -59,8 +69,10 @@ export class WireReader {
    * nothing — the empty view is shared.
    */
   invalidate(): void {
-    this.view = EMPTY_VIEW;
+    // Every read goes through `take`, so an empty window is enough to make one
+    // throw. Keeping the view and buffer lets the next `reset` reuse them.
     this.offset = 0;
+    this.limit = 0;
   }
 
   /**
@@ -70,68 +82,60 @@ export class WireReader {
    */
   private take(byteLength: number): number {
     const start = this.offset;
-    if (byteLength < 0 || start + byteLength > this.view.byteLength) {
+    const end = start + byteLength;
+    if (byteLength < 0 || end > this.limit) {
       throw new RangeError("Wire read past the end of the payload");
     }
-    this.offset = start + byteLength;
-    return this.view.byteOffset + start;
+    this.offset = end;
+    return start;
   }
 
   readBool(): boolean {
-    const value = this.view.getUint8(this.offset);
-    this.offset += 1;
+    const value = this.view.getUint8(this.take(1));
     return value !== 0;
   }
 
   skip(n: number): void {
-    this.offset += n;
+    this.take(n);
   }
 
   readI8(): number {
-    const value = this.view.getInt8(this.offset);
-    this.offset += 1;
+    const value = this.view.getInt8(this.take(1));
     return value;
   }
 
   readU8(): number {
-    const value = this.view.getUint8(this.offset);
-    this.offset += 1;
+    const value = this.view.getUint8(this.take(1));
     return value;
   }
 
   readI16(): number {
-    const value = this.view.getInt16(this.offset, true);
-    this.offset += 2;
+    const value = this.view.getInt16(this.take(2), true);
     return value;
   }
 
   readU16(): number {
-    const value = this.view.getUint16(this.offset, true);
-    this.offset += 2;
+    const value = this.view.getUint16(this.take(2), true);
     return value;
   }
 
   readI32(): number {
-    const value = this.view.getInt32(this.offset, true);
-    this.offset += 4;
+    const value = this.view.getInt32(this.take(4), true);
     return value;
   }
 
   readU32(): number {
-    const value = this.view.getUint32(this.offset, true);
-    this.offset += 4;
+    const value = this.view.getUint32(this.take(4), true);
     return value;
   }
 
   readI64(): bigint {
-    const value = this.view.getBigInt64(this.offset, true);
-    this.offset += 8;
+    const value = this.view.getBigInt64(this.take(8), true);
     return value;
   }
 
   readU64(): bigint {
-    const value = this.view.getBigUint64(this.offset, true);
-    this.offset += 8;
+    const value = this.view.getBigUint64(this.take(8), true);
     return value;
   }
 
@@ -144,14 +148,12 @@ export class WireReader {
   }
 
   readF32(): number {
-    const value = this.view.getFloat32(this.offset, true);
-    this.offset += 4;
+    const value = this.view.getFloat32(this.take(4), true);
     return value;
   }
 
   readF64(): number {
-    const value = this.view.getFloat64(this.offset, true);
-    this.offset += 8;
+    const value = this.view.getFloat64(this.take(8), true);
     return value;
   }
 
