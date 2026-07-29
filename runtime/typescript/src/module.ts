@@ -1209,6 +1209,7 @@ export class BoltFFIModule {
       try {
         return read(reader);
       } finally {
+        reader.invalidate();
         if (!empty) this.freePacked(pointer, length);
       }
     }
