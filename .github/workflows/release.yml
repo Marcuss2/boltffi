@@ -67,6 +67,14 @@ jobs:
       - name: Bump versions
         run: cargo set-version --workspace ${{ inputs.version }}
 
+      - name: Regenerate test fixture lock files
+        run: |
+          find . -path ./target -prune -o -name Cargo.lock -print \
+            | grep -v '^\./Cargo.lock$' \
+            | while read -r lock; do
+                (cd "$(dirname "$lock")" && cargo update --workspace --offline)
+              done
+
       - name: Bump npm runtime version
         if: ${{ !inputs.skip_npm }}
         run: |
