@@ -1180,6 +1180,32 @@ mod tests {
         source
     }
 
+    /// Builds sync and async callbacks that use a generated enum as their declared error type.
+    fn typed_fallible_listener_contract() -> SourceContract {
+        let error = TypeExpr::enumeration(EnumId::new("demo::Status"), Path::single("Status"));
+        let mut listener = listener_trait();
+        let mut load = MethodDef::new(
+            MethodId::new("load"),
+            CanonicalName::single("load"),
+            Receiver::Shared,
+        );
+        load.returns = result_return(TypeExpr::Primitive(Primitive::U32), error.clone());
+        let mut load_async = MethodDef::new(
+            MethodId::new("load_async"),
+            CanonicalName::single("load_async"),
+            Receiver::Shared,
+        );
+        load_async.execution = ExecutionKind::Async;
+        load_async.returns = result_return(TypeExpr::Primitive(Primitive::U32), error);
+        listener.methods.push(load);
+        listener.methods.push(load_async);
+
+        let mut source = SourceContract::new(PackageInfo::new("demo", None));
+        source.enums.push(status_enum());
+        source.traits.push(listener);
+        source
+    }
+
     fn async_callback_returning_listener_contract() -> SourceContract {
         let mut listener = listener_trait();
         let mut method = MethodDef::new(
@@ -7216,6 +7242,40 @@ mod tests {
         assert!(rendered.contains(":: boltffi :: __private :: wire :: decode :: < u32 >"));
         assert!(rendered.contains(":: boltffi :: __private :: wire :: decode :: < Vec < u8 > >"));
         assert!(rendered.contains(":: boltffi :: __private :: wire :: decode :: < String >"));
+    }
+
+    #[test]
+    fn native_typed_callback_errors_restore_unexpected_error_conversion() {
+        let source = typed_fallible_listener_contract();
+        let lowered = lower_with_declarations::<Native>(&source).expect("lowered bindings");
+        let expansion = Expansion::new(&lowered);
+
+        let tokens =
+            expand_native_callback(&expansion, &source.traits[0]).expect("expanded callback");
+        let rendered = tokens.to_string();
+        syn::parse2::<syn::File>(tokens).expect("expanded callback parses");
+
+        assert_eq!(rendered.matches("classify_payload").count(), 2);
+        assert!(rendered.contains("UnexpectedFfiCallbackPayload :: Unexpected"));
+        assert!(rendered.contains("UnexpectedFfiCallbackPayload :: Malformed"));
+        assert!(rendered.contains(
+            "Status as :: core :: convert :: From < :: boltffi :: __private :: UnexpectedFfiCallbackError"
+        ));
+    }
+
+    #[test]
+    fn wasm_typed_callback_errors_do_not_claim_native_unexpected_error_protocol() {
+        let source = typed_fallible_listener_contract();
+        let lowered = lower_with_declarations::<Wasm32>(&source).expect("lowered bindings");
+        let expansion = Expansion::new(&lowered);
+
+        let tokens =
+            expand_wasm_callback(&expansion, &source.traits[0]).expect("expanded callback");
+        let rendered = tokens.to_string();
+        syn::parse2::<syn::File>(tokens).expect("expanded callback parses");
+
+        assert!(!rendered.contains("UnexpectedFfiCallbackPayload"));
+        assert!(!rendered.contains("classify_payload"));
     }
 
     #[test]
