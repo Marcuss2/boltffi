@@ -1789,6 +1789,53 @@ mod tests {
         source
     }
 
+    fn borrowed_bytes_param_contract() -> SourceContract {
+        let mut function = FunctionDef::new(
+            FunctionId::new("demo::bytes_sum"),
+            CanonicalName::single("bytes_sum"),
+        );
+        let mut parameter = parameter("bytes", byte_slice());
+        parameter.passing = ParameterPassing::Ref;
+        function.parameters = vec![parameter];
+        function.returns = ReturnDef::value(TypeExpr::Primitive(Primitive::U32));
+
+        let mut source = SourceContract::new(PackageInfo::new("demo", None));
+        source.functions.push(function);
+        source
+    }
+
+    fn borrowed_byte_vec_param_contract() -> SourceContract {
+        let mut function = FunctionDef::new(
+            FunctionId::new("demo::vec_sum"),
+            CanonicalName::single("vec_sum"),
+        );
+        let mut parameter = parameter("bytes", byte_vec());
+        parameter.passing = ParameterPassing::Ref;
+        function.parameters = vec![parameter];
+        function.returns = ReturnDef::value(TypeExpr::Primitive(Primitive::U32));
+
+        let mut source = SourceContract::new(PackageInfo::new("demo", None));
+        source.functions.push(function);
+        source
+    }
+
+    fn two_borrowed_bytes_params_contract() -> SourceContract {
+        let mut function = FunctionDef::new(
+            FunctionId::new("demo::both_sum"),
+            CanonicalName::single("both_sum"),
+        );
+        let mut left = parameter("left", byte_slice());
+        left.passing = ParameterPassing::Ref;
+        let mut right = parameter("right", byte_slice());
+        right.passing = ParameterPassing::Ref;
+        function.parameters = vec![left, right];
+        function.returns = ReturnDef::value(TypeExpr::Primitive(Primitive::U32));
+
+        let mut source = SourceContract::new(PackageInfo::new("demo", None));
+        source.functions.push(function);
+        source
+    }
+
     fn mutable_bytes_param_contract() -> SourceContract {
         let mut function =
             FunctionDef::new(FunctionId::new("demo::fill"), CanonicalName::single("fill"));
@@ -5280,6 +5327,110 @@ mod tests {
             }
             .to_string()
         );
+    }
+
+    #[test]
+    fn wasm_borrowed_bytes_param_expansion_borrows_the_payload() {
+        // `&[u8]` borrows the wire payload rather than decoding it into a
+        // `Vec` that exists only to be borrowed from. Compare against
+        // `wasm_bytes_param_expansion_decodes_owned_bytes`, where the owned
+        // `Vec<u8>` parameter still decodes.
+        let source = borrowed_bytes_param_contract();
+        let lowered = lower_with_declarations::<Wasm32>(&source).expect("lowered bindings");
+        let expansion = Expansion::new(&lowered);
+        let syntax = syn::parse_quote! {
+            pub fn bytes_sum(bytes: &[u8]) -> u32 {
+                bytes.iter().map(|byte| u32::from(*byte)).sum()
+            }
+        };
+
+        let tokens =
+            expand_function(&expansion, &source.functions[0], syntax).expect("expanded function");
+
+        assert_eq!(
+            tokens.to_string(),
+            quote! {
+                pub fn bytes_sum(bytes: &[u8]) -> u32 {
+                    bytes.iter().map(|byte| u32::from(*byte)).sum()
+                }
+                #[cfg(target_arch = "wasm32")]
+                #[unsafe(no_mangle)]
+                pub unsafe extern "C" fn boltffi_function_demo_bytes_sum(
+                    __boltffi_bytes_ptr: *const u8,
+                    __boltffi_bytes_len: usize
+                ) -> u32 {
+                    let bytes: &[u8] = {
+                        if __boltffi_bytes_ptr.is_null() && __boltffi_bytes_len > 0 {
+                            ::boltffi::__private::set_last_error_len(stringify!(bytes), "null pointer with non-zero length", __boltffi_bytes_len as usize);
+                            return <u32 as ::core::default::Default>::default();
+                        }
+                        let __boltffi_bytes: &[u8] = if __boltffi_bytes_len == 0 {
+                            &[]
+                        } else {
+                            unsafe {
+                                ::core::slice::from_raw_parts(
+                                    __boltffi_bytes_ptr,
+                                    __boltffi_bytes_len
+                                )
+                            }
+                        };
+                        match ::boltffi::__private::wire::decode_bytes(__boltffi_bytes) {
+                            Ok(value) => value,
+                            Err(error) => {
+                                ::boltffi::__private::set_last_error_display(stringify!(bytes), "wire decode failed", &error, __boltffi_bytes_len as usize);
+                                return <u32 as ::core::default::Default>::default();
+                            }
+                        }
+                    };
+                    bytes_sum(bytes)
+                }
+            }
+            .to_string()
+        );
+    }
+
+    #[test]
+    fn wasm_borrowed_byte_vec_param_keeps_decoding_into_owned_storage() {
+        // `&Vec<u8>` borrows the vector, not a slice of it, so it still needs
+        // the owned storage to point at. The guard is on the borrow shape, not
+        // on the codec alone.
+        let source = borrowed_byte_vec_param_contract();
+        let lowered = lower_with_declarations::<Wasm32>(&source).expect("lowered bindings");
+        let expansion = Expansion::new(&lowered);
+        let syntax = syn::parse_quote! {
+            pub fn vec_sum(bytes: &Vec<u8>) -> u32 {
+                bytes.len() as u32
+            }
+        };
+
+        let tokens = expand_function(&expansion, &source.functions[0], syntax)
+            .expect("expanded function")
+            .to_string();
+
+        assert!(tokens.contains("wire :: decode ::"), "{tokens}");
+        assert!(!tokens.contains("decode_bytes"), "{tokens}");
+    }
+
+    #[test]
+    fn wasm_two_borrowed_bytes_params_each_borrow_their_own_payload() {
+        let source = two_borrowed_bytes_params_contract();
+        let lowered = lower_with_declarations::<Wasm32>(&source).expect("lowered bindings");
+        let expansion = Expansion::new(&lowered);
+        let syntax = syn::parse_quote! {
+            pub fn both_sum(left: &[u8], right: &[u8]) -> u32 {
+                (left.len() + right.len()) as u32
+            }
+        };
+
+        let tokens = expand_function(&expansion, &source.functions[0], syntax)
+            .expect("expanded function")
+            .to_string();
+
+        assert_eq!(tokens.matches("decode_bytes").count(), 2, "{tokens}");
+        // Each parameter reads its own pointer and length, so the two borrows
+        // cannot alias unless the caller passes overlapping buffers.
+        assert!(tokens.contains("__boltffi_left_ptr"), "{tokens}");
+        assert!(tokens.contains("__boltffi_right_ptr"), "{tokens}");
     }
 
     #[test]
