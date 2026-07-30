@@ -880,7 +880,7 @@ impl InvokeReturn {
                 return ::boltffi::__private::FfiBuf::default();
             },
             InvokeReturnKind::WasmEncoded { .. } => quote! {
-                return ::boltffi::__private::FfiBuf::EMPTY_PACKED;
+                return ::boltffi::__private::FfiBuf::default().into_packed();
             },
             InvokeReturnKind::Fallible(fallible) => fallible.error.failure(),
         }

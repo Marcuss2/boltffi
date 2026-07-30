@@ -4414,7 +4414,7 @@ impl CallbackEncodedError {
     fn empty_value(&self) -> TokenStream {
         match self {
             Self::NativeBuffer => quote! { ::boltffi::__private::FfiBuf::default() },
-            Self::WasmPacked => quote! { ::boltffi::__private::FfiBuf::EMPTY_PACKED },
+            Self::WasmPacked => quote! { ::boltffi::__private::FfiBuf::default().into_packed() },
         }
     }
 
