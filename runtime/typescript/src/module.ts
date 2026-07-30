@@ -224,6 +224,7 @@ export class BoltFFIModule {
   private _optionF64Bits = new BigUint64Array(this._optionF64Storage);
   private _optionF64Values = new Float64Array(this._optionF64Storage);
   private _returnSlotAddr: number = 0;
+  private _regionAllocator: WasmWireWriterAllocator | null = null;
 
   constructor(
     instance: WebAssembly.Instance,
@@ -807,7 +808,14 @@ export class BoltFFIModule {
   }
 
   writerFromMemory(ptr: number, size: number): WriterAlloc {
-    return WireWriter.withWasmRegion(ptr, size, () => this._memory.buffer);
+    // Callback trampolines call this once per element, so the allocator is
+    // built once and shared rather than rebuilt with four closures per call.
+    let allocator = this._regionAllocator;
+    if (allocator === null) {
+      allocator = WireWriter.fixedRegionAllocator(() => this._memory.buffer);
+      this._regionAllocator = allocator;
+    }
+    return WireWriter.withWasmRegion(ptr, size, allocator.buffer, allocator);
   }
 
   allocBufDescriptor(): number {
