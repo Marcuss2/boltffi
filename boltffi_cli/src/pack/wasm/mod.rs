@@ -95,7 +95,12 @@ pub(crate) fn pack_wasm(
 
     if config.wasm_optimize_enabled(wasm_artifact_profile) {
         let step = reporter.step("Optimizing WASM binary");
-        optimize_wasm_binary(config, &wasm_artifact_path)?;
+        optimize_wasm_binary(
+            config,
+            &wasm_artifact_path,
+            wasm_artifact_profile,
+            &build_cargo_args,
+        )?;
         step.finish_success();
     }
 
@@ -260,8 +265,12 @@ impl WasmArtifactPath {
 /// target rather than hardcoded, which keeps them correct if rustc's defaults
 /// move. `--all-features` would also silence the error, but it lets `wasm-opt`
 /// *emit* SIMD, threads or GC instructions the host engine may not implement.
-fn binaryen_feature_flags(triple: &str) -> Vec<&'static str> {
-    rustc_target_features(triple)
+fn binaryen_feature_flags(
+    config: &Config,
+    profile: WasmProfile,
+    build_cargo_args: &[String],
+) -> Vec<&'static str> {
+    effective_target_features(config, profile, build_cargo_args)
         .iter()
         .flat_map(|feature| binaryen_flags_for(feature))
         .copied()
@@ -291,14 +300,33 @@ fn binaryen_flags_for(feature: &str) -> &'static [&'static str] {
     }
 }
 
-/// Reads the target's default-enabled features from rustc. Returns empty when
-/// rustc cannot be reached, which leaves the previous behaviour rather than
-/// failing the pack over a diagnostic.
-fn rustc_target_features(triple: &str) -> Vec<String> {
-    let output = Command::new("rustc")
-        .args(["--print", "cfg", "--target", triple])
-        .output();
-    let Ok(output) = output else {
+/// Reads the features the *build* actually enables, by asking rustc through
+/// cargo with the same arguments the build used.
+///
+/// A bare `rustc --print cfg` would report only the default toolchain's
+/// defaults: it receives no `RUSTFLAGS`, no `CARGO_TARGET_*_RUSTFLAGS`, no
+/// `.cargo/config.toml`, and not the toolchain a `rust-toolchain.toml` selects.
+/// A project enabling `simd128` that way would still have its module rejected.
+/// Going through `cargo rustc` makes cargo resolve all of that.
+///
+/// Returns empty when cargo cannot be reached or the query fails, which leaves
+/// the previous behaviour rather than failing the pack over a diagnostic.
+fn effective_target_features(
+    config: &Config,
+    profile: WasmProfile,
+    build_cargo_args: &[String],
+) -> Vec<String> {
+    let mut command = Command::new("cargo");
+    command
+        .arg("rustc")
+        .args(["--target", config.wasm_triple()]);
+    if matches!(profile, WasmProfile::Release) {
+        command.arg("--release");
+    }
+    command.args(build_cargo_args);
+    command.args(["--", "--print", "cfg"]);
+
+    let Ok(output) = command.output() else {
         return Vec::new();
     };
     if !output.status.success() {
@@ -314,7 +342,12 @@ fn parse_target_features(cfg: &str) -> Vec<String> {
         .collect()
 }
 
-fn optimize_wasm_binary(config: &Config, wasm_path: &Path) -> Result<()> {
+fn optimize_wasm_binary(
+    config: &Config,
+    wasm_path: &Path,
+    profile: WasmProfile,
+    build_cargo_args: &[String],
+) -> Result<()> {
     let optimize_level_flag = match config.wasm_optimize_level() {
         WasmOptimizeLevel::O0 => "-O0",
         WasmOptimizeLevel::O1 => "-O1",
@@ -350,7 +383,7 @@ fn optimize_wasm_binary(config: &Config, wasm_path: &Path) -> Result<()> {
         .arg("-o")
         .arg(&optimized_path);
 
-    for flag in binaryen_feature_flags(config.wasm_triple()) {
+    for flag in binaryen_feature_flags(config, profile, build_cargo_args) {
         command.arg(flag);
     }
 
@@ -558,7 +591,7 @@ mod tests {
 
 #[cfg(test)]
 mod optimize_feature_tests {
-    use super::{binaryen_feature_flags, binaryen_flags_for, parse_target_features};
+    use super::{binaryen_flags_for, parse_target_features};
 
     #[test]
     fn parses_the_features_rustc_prints() {
@@ -585,19 +618,40 @@ mod optimize_feature_tests {
     }
 
     #[test]
-    fn wasm32_target_enables_bulk_memory() {
-        // The whole point: without this, a module built with `strip = true` is
-        // rejected by wasm-opt for using `memory.copy`.
-        let flags = binaryen_feature_flags("wasm32-unknown-unknown");
-
-        assert!(
-            flags.contains(&"--enable-bulk-memory-opt"),
-            "expected bulk memory to be enabled, got {flags:?}"
+    fn maps_the_wasm32_defaults_binaryen_needs() {
+        // What `cargo rustc --print cfg` reports for wasm32-unknown-unknown.
+        // Without the bulk-memory half, a stripped module is rejected for using
+        // `memory.copy`.
+        let cfg = concat!(
+            "target_feature=\"bulk-memory\"\n",
+            "target_feature=\"multivalue\"\n",
+            "target_feature=\"mutable-globals\"\n",
+            "target_feature=\"nontrapping-fptoint\"\n",
+            "target_feature=\"reference-types\"\n",
+            "target_feature=\"sign-ext\"\n",
         );
+        let flags: Vec<&str> = parse_target_features(cfg)
+            .iter()
+            .flat_map(|feature| binaryen_flags_for(feature))
+            .copied()
+            .collect();
+
+        assert!(flags.contains(&"--enable-bulk-memory-opt"), "{flags:?}");
+        assert!(flags.contains(&"--enable-sign-ext"), "{flags:?}");
+        assert_eq!(flags.len(), 7, "{flags:?}");
     }
 
     #[test]
-    fn an_unknown_target_yields_no_flags_instead_of_failing() {
-        assert!(binaryen_feature_flags("not-a-real-triple").is_empty());
+    fn a_non_default_feature_enabled_by_rustflags_is_mapped() {
+        // The case a bare `rustc --print cfg` would miss: cargo reports
+        // `simd128` when the build enables it, and it has to reach wasm-opt.
+        let cfg = "target_feature=\"bulk-memory\"\ntarget_feature=\"simd128\"\n";
+        let flags: Vec<&str> = parse_target_features(cfg)
+            .iter()
+            .flat_map(|feature| binaryen_flags_for(feature))
+            .copied()
+            .collect();
+
+        assert!(flags.contains(&"--enable-simd"), "{flags:?}");
     }
 }
