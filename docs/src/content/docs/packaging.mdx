@@ -677,6 +677,20 @@ strip_debug = true   # remove debug info
 
 Set `enabled = false` during development for faster builds.
 
+wasm-opt refuses to touch a module that uses features it has not been told
+about. It normally reads them from the `target_features` section rustc emits,
+but `strip = true` in your release profile deletes that section, and then
+optimization fails on the `memory.copy` rustc generates:
+
+```
+[wasm-validator error in function 2] unexpected false: memory.copy operations
+require bulk memory operations [--enable-bulk-memory-opt]
+```
+
+boltffi passes the features explicitly instead, reading them from your own cargo
+build so anything you enable through `RUSTFLAGS`, `.cargo/config.toml` or a
+pinned toolchain is included. Stripping in release needs no extra configuration.
+
 ### Using in a Bundler (Vite, webpack)
 
 Install the package and import directly:
