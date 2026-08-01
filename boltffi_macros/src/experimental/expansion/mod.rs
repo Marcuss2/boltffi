@@ -9116,7 +9116,7 @@ mod tests {
                 pub extern "C" fn boltffi_function_demo_try_ping() -> u64 {
                     match try_ping() {
                         Ok(()) => {
-                            ::boltffi::__private::FfiBuf::default().into_packed()
+                            ::boltffi::__private::FfiBuf::EMPTY_PACKED
                         }
                         Err(__boltffi_error) => {
                             ::boltffi::__private::FfiBuf::wire_encode_owned_string(__boltffi_error).into_packed()
@@ -9165,7 +9165,7 @@ mod tests {
                                     );
                                 }
                             }
-                            ::boltffi::__private::FfiBuf::default().into_packed()
+                            ::boltffi::__private::FfiBuf::EMPTY_PACKED
                         }
                         Err(__boltffi_error) => {
                             ::boltffi::__private::FfiBuf::wire_encode_owned_string(__boltffi_error).into_packed()
