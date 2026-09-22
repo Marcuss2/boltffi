@@ -29,12 +29,7 @@ pub struct RequestConfig {
 #[demo_bench_macros::demo_case(
     "records.default_values.custom_type.should_apply_default",
     justification = "Ensure a generated record constructor applies a custom-type default through its record representation.",
-    directions = "Construct `records::default_values::RequestConfig` without a timeout, pass it to `records::default_values::request_timeout_seconds`, and assert the default is 1.5 seconds.",
-    exclude(
-        c,
-        reason = ExclusionReason::ImplementationGap,
-        details = "C target does not yet support custom types"
-    )
+    directions = "Construct `records::default_values::RequestConfig` without a timeout, pass it to `records::default_values::request_timeout_seconds`, and assert the default is 1.5 seconds."
 )]
 #[export]
 pub fn request_timeout_seconds(config: RequestConfig) -> f64 {

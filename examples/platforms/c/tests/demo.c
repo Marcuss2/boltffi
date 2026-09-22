@@ -1,63 +1,21 @@
-/*
- * C platform smoke test for the experimental C backend.
- *
- * Covers package-prefixed free functions, owned class handles, typed String
- * results, and fallible class initializers.
- */
-#include <stdio.h>
-
-#include "demo.h"
-
-static int failures = 0;
-
-#define CHECK(cond)                                                           \
-    do {                                                                      \
-        if (!(cond)) {                                                        \
-            (void)fprintf(stderr, "FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond); \
-            failures++;                                                       \
-        }                                                                     \
-    } while (0)
+#include "test.h"
 
 int main(void) {
-    CHECK(DEMO_ANSWER == 42);
-    CHECK(demo_add(2, 3) == 5);
-
-    {
-        DemoAccumulator accumulator = demo_accumulator_new();
-        CHECK(accumulator.handle != 0);
-        CHECK(demo_accumulator_add(&accumulator, 5).code == 0);
-        CHECK(demo_accumulator_get(&accumulator) == 5);
-        demo_accumulator_free(&accumulator);
-        CHECK(accumulator.handle == 0);
+    bool (*const tests[])(void) = {
+        test_scalars, test_results, test_class_handles, test_options,
+        test_strings, test_bytes, test_records, test_record_vectors,
+        test_vectors, test_nested_vectors, test_nested_options,
+        test_builtins, test_maps, test_custom_types, test_shapes,
+        test_messages, test_animals, test_filters, test_owned_records,
+        test_record_collections, test_constants, test_callback_ownership, test_scalar_enums,
+        test_result_values, test_error_values, test_nested_records,
+        test_service_configs, test_borrowed_constructors, test_optional_record_vectors,
+        test_mutable_values
+    };
+    bool passed = true;
+    for (size_t index = 0; index < sizeof(tests) / sizeof(tests[0]); ++index) {
+        passed = tests[index]() && passed;
     }
-
-    {
-        DemoSafeDivideResult quotient = demo_safe_divide(6, 2);
-        CHECK(quotient.ok);
-        CHECK(quotient.data.value == 3);
-
-        DemoSafeDivideResult division_by_zero = demo_safe_divide(1, 0);
-        CHECK(!division_by_zero.ok);
-        CHECK(division_by_zero.data.error.len != 0);
-        boltffi_free_string(division_by_zero.data.error);
-    }
-
-    {
-        DemoInventoryTryNewResult invalid = demo_inventory_try_new(0);
-        CHECK(!invalid.ok);
-        CHECK(invalid.data.error.len != 0);
-        boltffi_free_string(invalid.data.error);
-
-        DemoInventoryTryNewResult valid = demo_inventory_try_new(4);
-        CHECK(valid.ok);
-        CHECK(valid.data.value.handle != 0);
-        demo_inventory_free(&valid.data.value);
-    }
-
-    if (failures == 0) {
-        (void)printf("C platform tests passed.\n");
-        return 0;
-    }
-    (void)fprintf(stderr, "%d failures\n", failures);
-    return 1;
+    if (passed) puts("C platform tests passed.");
+    return passed ? 0 : 1;
 }
