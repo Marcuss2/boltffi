@@ -21,6 +21,7 @@ const coverageGapTypeMembers = new Set();
 const featureScopedRustFiles = new Set([
   "callbacks/csharp_closures.rs",
   "classes/async_factory.rs",
+  "records/mutable.rs",
 ]);
 
 const tsKeywords = new Set([

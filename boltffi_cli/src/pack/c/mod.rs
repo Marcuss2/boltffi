@@ -18,10 +18,14 @@
 //! `lib<library>.a`.
 
 use std::path::PathBuf;
-use std::process::Command;
+
+use boltffi_bindgen::target::Target;
 
 use crate::{
-    build::{BindingExpansion, CargoBuildProfile, resolve_build_profile},
+    build::{
+        BindingExpansion, BuildOptions, BuildSelection, Builder, CargoBuildProfile, OutputCallback,
+        resolve_build_profile,
+    },
     cargo::Cargo,
     cli::{CliError, Result},
     commands::{
@@ -29,7 +33,7 @@ use crate::{
         pack::PackCOptions,
     },
     config::Config,
-    pack::resolve_build_cargo_args,
+    pack::{PackError, print_cargo_line, resolve_build_cargo_args},
     reporter::Reporter,
     target::NativeHostPlatform,
 };
@@ -63,45 +67,6 @@ fn ensure_c_library_outputs(expansion: &BindingExpansion) -> Result<()> {
     })
 }
 
-/// Configures the same binding-expansion ABI shim build used by the other
-/// native packers.
-fn host_libraries_command(expansion: &BindingExpansion, release: bool) -> Result<Command> {
-    let mut command = Command::new("cargo");
-    if let Some(toolchain_selector) = expansion.toolchain_selector() {
-        command.arg(toolchain_selector);
-    }
-    command
-        .arg("rustc")
-        .arg("--manifest-path")
-        .arg(expansion.cargo_manifest_path())
-        .arg("-p")
-        .arg(expansion.package_id());
-    if release {
-        command.arg("--release");
-    }
-    command.args(expansion.cargo_args());
-    command.arg("--lib");
-    expansion.configure_rustc(&mut command)?;
-    Ok(command)
-}
-
-/// Builds the same binding-expansion ABI shim used by the other native packers.
-fn build_host_libraries(expansion: &BindingExpansion, release: bool) -> Result<()> {
-    let mut command = host_libraries_command(expansion, release)?;
-    let status = command.status().map_err(|source| CliError::CommandFailed {
-        command: format!("cargo rustc: {source}"),
-        status: None,
-    })?;
-
-    if !status.success() {
-        return Err(CliError::CommandFailed {
-            command: "cargo rustc".to_string(),
-            status: status.code(),
-        });
-    }
-    Ok(())
-}
-
 fn copy_file(source: PathBuf, dest: PathBuf) -> Result<()> {
     std::fs::copy(&source, &dest)
         .map(|_| ())
@@ -116,6 +81,13 @@ pub(crate) fn pack_c(config: &Config, options: PackCOptions, reporter: &Reporter
     if !config.is_c_enabled() {
         return Err(CliError::CommandFailed {
             command: "targets.c.enabled = false".to_string(),
+            status: None,
+        });
+    }
+    if !config.should_process(Target::C, options.experimental) {
+        return Err(CliError::CommandFailed {
+            command: "c is experimental, use --experimental or add \"c\" to experimental"
+                .to_owned(),
             status: None,
         });
     }
@@ -147,12 +119,35 @@ pub(crate) fn pack_c(config: &Config, options: PackCOptions, reporter: &Reporter
         step.finish_success();
     }
 
+    let platform = NativeHostPlatform::current().ok_or_else(|| CliError::CommandFailed {
+        command: "pack c is unsupported on this host platform".to_owned(),
+        status: None,
+    })?;
+    let artifact_name = binding_expansion.artifact_name().to_owned();
+    let profile_dir = binding_expansion
+        .target_directory()
+        .join(build_profile.output_directory_name());
+
     if !options.execution.no_build {
         let step = reporter.step("Building Rust shared and static libraries");
-        build_host_libraries(
-            &binding_expansion,
-            matches!(build_profile, CargoBuildProfile::Release),
-        )?;
+        let on_output: Option<OutputCallback> = step
+            .is_verbose()
+            .then(|| Box::new(print_cargo_line) as OutputCallback);
+        let builder = Builder::new(
+            config,
+            BuildOptions {
+                release: matches!(build_profile, CargoBuildProfile::Release),
+                selection: BuildSelection::Expanded(Box::new(binding_expansion)),
+                on_output,
+                extra_env: Vec::new(),
+            },
+        );
+        if !builder.build_host()? {
+            return Err(PackError::BuildFailed {
+                targets: vec![platform.canonical_name().to_owned()],
+            }
+            .into());
+        }
         step.finish_success();
     }
 
@@ -171,31 +166,33 @@ pub(crate) fn pack_c(config: &Config, options: PackCOptions, reporter: &Reporter
     })?;
 
     let library_name = config.library_name().to_string();
-    let artifact_name = binding_expansion.artifact_name();
-    let target_directory = binding_expansion.target_directory();
-    let profile_dir = target_directory.join(build_profile.output_directory_name());
 
     // Header.
     let header_source = output_dir.join("boltffi.h");
     let header_dest = include_dir.join(format!("{library_name}.h"));
     copy_file(header_source, header_dest)?;
 
-    let platform = NativeHostPlatform::current().ok_or_else(|| CliError::CommandFailed {
-        command: "pack c is unsupported on this host platform".to_owned(),
-        status: None,
-    })?;
-
     // Shared library.
     copy_file(
-        profile_dir.join(platform.shared_library_filename(artifact_name)),
+        profile_dir.join(platform.shared_library_filename(&artifact_name)),
         lib_dir.join(platform.shared_library_filename(&library_name)),
     )?;
 
     // Static archive.
     copy_file(
-        profile_dir.join(platform.static_library_filename(artifact_name)),
+        profile_dir.join(platform.static_library_filename(&artifact_name)),
         lib_dir.join(platform.static_library_filename(&library_name)),
     )?;
+
+    if let (Some(source_name), Some(destination_name)) = (
+        platform.import_library_filename(&artifact_name),
+        platform.import_library_filename(&library_name),
+    ) {
+        copy_file(
+            profile_dir.join(source_name),
+            lib_dir.join(destination_name),
+        )?;
+    }
 
     step.finish_success();
     reporter.finish();
@@ -204,8 +201,31 @@ pub(crate) fn pack_c(config: &Config, options: PackCOptions, reporter: &Reporter
 
 #[cfg(test)]
 mod tests {
-    use super::{ensure_c_library_outputs, host_libraries_command};
+    use super::{ensure_c_library_outputs, pack_c};
     use crate::build::BindingExpansion;
+    use crate::commands::pack::{PackCOptions, PackExecutionOptions};
+    use crate::config::Config;
+    use crate::reporter::{Reporter, Verbosity};
+
+    #[test]
+    fn c_pack_requires_opt_in_even_without_regeneration_or_build() {
+        let config: Config =
+            toml::from_str("[package]\nname = \"demo\"\n[targets.c]\nenabled = true\n")
+                .expect("config");
+        let options = PackCOptions {
+            execution: PackExecutionOptions {
+                release: false,
+                regenerate: false,
+                no_build: true,
+                deny_skipped: false,
+                cargo_args: Vec::new(),
+            },
+            experimental: false,
+        };
+        let error = pack_c(&config, options, &Reporter::new(Verbosity::Quiet))
+            .expect_err("C packaging requires opt-in before any Cargo work");
+        assert!(error.to_string().contains("c is experimental"));
+    }
 
     #[test]
     fn c_pack_requires_shared_and_static_library_outputs() {
@@ -219,40 +239,5 @@ mod tests {
             let error = ensure_c_library_outputs(&expansion).expect_err("missing output rejects");
             assert!(format!("{error}").contains("both cdylib and staticlib"));
         }
-    }
-
-    #[test]
-    fn c_build_uses_the_binding_expansion_abi_shim() {
-        let expansion = BindingExpansion::fixture(
-            "/external/workspace/Cargo.toml",
-            "/external/workspace/demo/Cargo.toml",
-            ["--features".to_string(), "ffi".to_string()],
-        );
-        let package_id = expansion.package_id().to_owned();
-        let command = host_libraries_command(&expansion, true).expect("command");
-        let arguments = command
-            .get_args()
-            .map(|argument| argument.to_string_lossy().into_owned())
-            .collect::<Vec<_>>();
-
-        assert_eq!(arguments.first().map(String::as_str), Some("+nightly"));
-        assert_eq!(arguments.get(1).map(String::as_str), Some("rustc"));
-        assert!(arguments.windows(2).any(|arguments| {
-            arguments == ["--manifest-path", "/external/workspace/Cargo.toml"]
-        }));
-        assert!(
-            arguments
-                .windows(2)
-                .any(|arguments| arguments == ["-p", package_id.as_str()])
-        );
-        assert_eq!(
-            &arguments[arguments.len() - 4..],
-            ["--lib", "--", "--cfg", "boltffi_binding_expansion"]
-        );
-        assert!(
-            command
-                .get_envs()
-                .any(|(key, value)| { key == "BOLTFFI_BINDING_EXPANSION" && value.is_some() })
-        );
     }
 }
