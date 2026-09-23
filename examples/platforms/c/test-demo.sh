@@ -8,7 +8,8 @@ build_dir="$script_dir/build"
 
 (
     cd "$demo_dir"
-    cargo run --quiet --manifest-path "$repo_root/Cargo.toml" -p boltffi_cli -- pack c --experimental
+    cargo run --quiet --manifest-path "$repo_root/Cargo.toml" -p boltffi_cli -- \
+        --cargo-arg=--features --cargo-arg=c-demo pack c --experimental
 )
 
 cmake -S "$script_dir" -B "$build_dir" -DCMAKE_BUILD_TYPE=Debug
