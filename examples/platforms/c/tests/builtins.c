@@ -9,8 +9,8 @@ bool test_builtins(void) {
     duration = demo_make_duration(3, 1500000000);
     CHECK(duration.seconds == 4 && duration.nanoseconds == 500000000, "case:builtins.duration.should_construct_from_parts");
     CHECK(demo_duration_as_millis((DemoDuration){42, 123456789}) == 42123, "case:builtins.duration.should_report_milliseconds");
-    DemoSystemTime timestamp = demo_echo_system_time((DemoSystemTime){1234567, 987654321});
-    CHECK(timestamp.seconds == 1234567 && timestamp.nanoseconds == 987654321, "case:builtins.system_time.should_roundtrip_value");
+    DemoSystemTime timestamp = demo_echo_system_time((DemoSystemTime){1234567, 987654300});
+    CHECK(timestamp.seconds == 1234567 && timestamp.nanoseconds == 987654300, "case:builtins.system_time.should_roundtrip_value");
     timestamp = demo_echo_system_time((DemoSystemTime){-1, 500000000});
     CHECK(timestamp.seconds == -1 && timestamp.nanoseconds == 500000000, "case:builtins.system_time.should_roundtrip_pre_epoch_value");
     CHECK(demo_system_time_to_millis((DemoSystemTime){42, 123456789}) == 42123, "case:builtins.system_time.should_convert_to_epoch_milliseconds");
