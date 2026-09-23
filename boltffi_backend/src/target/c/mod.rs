@@ -302,15 +302,13 @@ mod tests {
                 "capability {capability:?} should be stable for the C host"
             );
         }
-        for capability in [BindingCapability::Streams] {
-            assert!(
-                matches!(
-                    capabilities.status(capability),
-                    CapabilityStatus::Unsupported { .. }
-                ),
-                "capability {capability:?} should be unsupported for the C host"
-            );
-        }
+        assert!(
+            matches!(
+                capabilities.status(BindingCapability::Streams),
+                CapabilityStatus::Unsupported { .. }
+            ),
+            "streams should be unsupported for the C host"
+        );
     }
 
     #[test]
